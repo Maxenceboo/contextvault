@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, stat, utimes, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -41,7 +41,40 @@ describe("verrou d'instance unique (BC-02.3)", () => {
     await lock.release();
   });
 
-  it('ne reprend pas un verrou posé depuis une autre machine', async () => {
+  it('reprend un verrou laissé par une incarnation précédente de même pid (conteneur redémarré)', async () => {
+    const path = await lockPath();
+    await writeFile(
+      path,
+      JSON.stringify({ pid: 7, hostname: 'conteneur', startedAt: '2020-01-01T00:00:00.000Z' }),
+    );
+    const lock = await acquireInstanceLock(path, { pid: 7, hostname: 'conteneur' });
+    await lock.release();
+  });
+
+  it('reprend un verrou non rafraîchi depuis trop longtemps, même d’une autre machine', async () => {
+    const path = await lockPath();
+    await writeFile(path, JSON.stringify({ pid: 1, hostname: 'ancien-conteneur', startedAt: 'x' }));
+    const old = new Date(Date.now() - 120_000);
+    await utimes(path, old, old);
+
+    const lock = await acquireInstanceLock(path, { hostname: 'nouveau-conteneur' });
+    expect(JSON.parse(await readFile(path, 'utf8'))).toMatchObject({
+      hostname: 'nouveau-conteneur',
+    });
+    await lock.release();
+  });
+
+  it('rafraîchit le verrou tant qu’il est tenu', async () => {
+    const path = await lockPath();
+    const lock = await acquireInstanceLock(path, { heartbeatMs: 20 });
+    const old = new Date(Date.now() - 120_000);
+    await utimes(path, old, old);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(Date.now() - (await stat(path)).mtimeMs).toBeLessThan(5_000);
+    await lock.release();
+  });
+
+  it('ne reprend pas un verrou récent posé depuis une autre machine', async () => {
     const path = await lockPath();
     await writeFile(path, JSON.stringify({ pid: 1, hostname: 'machine-b', startedAt: 'x' }));
     await expect(acquireInstanceLock(path, { hostname: 'machine-a' })).rejects.toThrow(

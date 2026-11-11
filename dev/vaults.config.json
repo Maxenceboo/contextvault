@@ -1,0 +1,33 @@
+{
+  "version": "1.0.0",
+  "settings": {
+    "enable_rag": false,
+    "allowed_clients": {
+      "interne": ["*"],
+      "eleve": ["*"],
+      "critique": []
+    },
+    "plugins": []
+  },
+  "vaults": [
+    {
+      "id": "_global-socle",
+      "display_name": "Socle ESN (démo)",
+      "source": "file:///srv/vaults/global-socle",
+      "inherits": null,
+      "access_roles": ["all"],
+      "level": "interne",
+      "status": "actif"
+    },
+    {
+      "id": "client-demo",
+      "display_name": "Client démo",
+      "source": "file:///srv/vaults/client-demo",
+      "inherits": ["_global-socle"],
+      "access_roles": ["vault-client-demo"],
+      "level": "eleve",
+      "status": "actif",
+      "review_date": "2027-06-30"
+    }
+  ]
+}

@@ -28,7 +28,12 @@ describe('indexeur (BC-02.3)', () => {
 
   it('ouvre le stockage en écriture et pose le verrou', async () => {
     const options = await setup();
-    const indexer = await startIndexer({ ...options, logLevel: 'info', logger: silent });
+    const indexer = await startIndexer({
+      ...options,
+      logLevel: 'info',
+      environment: 'production',
+      logger: silent,
+    });
     expect(indexer.storage.mode).toBe('write');
     expect(existsSync(join(options.indexDir, LOCK_FILE_NAME))).toBe(true);
     await indexer.close();
@@ -37,12 +42,18 @@ describe('indexeur (BC-02.3)', () => {
 
   it('refuse un second indexeur et le journalise', async () => {
     const options = await setup();
-    const first = await startIndexer({ ...options, logLevel: 'info', logger: silent });
+    const first = await startIndexer({
+      ...options,
+      logLevel: 'info',
+      environment: 'production',
+      logger: silent,
+    });
     const lines: string[] = [];
     await expect(
       startIndexer({
         ...options,
         logLevel: 'info',
+        environment: 'production',
         logger: createLogger('indexer', { write: (l) => lines.push(l) }),
       }),
     ).rejects.toThrow(InstanceLockedError);
