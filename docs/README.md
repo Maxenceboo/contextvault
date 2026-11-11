@@ -2,7 +2,7 @@
 
 | Document | Contenu |
 |---|---|
-| [Cahier des charges V5.2](cahier-des-charges.md) | Référence fonctionnelle et technique, plan de livraison (§7) |
+| [Cahier des charges V6](cahier-des-charges.md) | Référence fonctionnelle et technique, avec schémas et plan de livraison (§12) |
 | [Décisions fonctionnelles](decisions-fonctionnelles.md) | Q1 à Q20, avec leur justification |
 | [Décisions techniques](decisions-techniques.md) | T1 à T21, avec leur justification |
 | [Backlog](backlog/) | 62 stories, 182 tâches de 1 à 3 points, 15 sprints : `backlog.json` (source), `backlog.html` (vue filtrable), `backlog-jira.csv` (import Jira) |
