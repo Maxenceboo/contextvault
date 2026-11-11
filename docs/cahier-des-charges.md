@@ -1,208 +1,583 @@
-# Cahier des Charges Fonctionnel et Technique : Système de Banque de Contextes Multi-Vaults avec Héritage, Plug & Play et Étanchéité Absolue
+# ContextVault — Cahier des charges
 
-**Version 5.2** · 11/11/2026 · Nom du produit : **ContextVault** (dépôt `contextvault`). Intègre les décisions fonctionnelles Q1 à Q20 (`decisions.md`) et techniques T1 à T21 (`decisions-techniques.md`), et le plan de livraison du backlog (§7). Le détail technique est dans la documentation technique.
+**Banque de contextes multi-vaults pour assistants IA, avec héritage, cloisonnement et lecture seule**
+
+| | |
+|---|---|
+| Version | 6.0 |
+| Date | 11/11/2026 |
+| Statut | Validé en revue (décisions Q1 à Q20 et T1 à T21) |
+| Documents liés | [Décisions fonctionnelles](decisions-fonctionnelles.md) · [Décisions techniques](decisions-techniques.md) · [Backlog](backlog/) |
+
+### Historique
+
+| Version | Date | Changement |
+|---|---|---|
+| 4.0 | — | Version initiale soumise à revue |
+| 5.0 | 10/11/2026 | Intégration des 20 décisions fonctionnelles |
+| 5.1 | 11/11/2026 | Extensions par plugins composables (T17) |
+| 5.2 | 11/11/2026 | Intégration des 21 décisions techniques et du plan de livraison |
+| 6.0 | 11/11/2026 | Refonte du document : exigences numérotées, schémas, traçabilité. Aucun changement de fond par rapport à la 5.2 |
 
 ---
 
-## 1. Vue d'ensemble et Objectifs
+## Sommaire
 
-### 1.1 Contexte du Projet
+1. [Présentation](#1-présentation)
+2. [Acteurs](#2-acteurs)
+3. [Vue d'ensemble](#3-vue-densemble)
+4. [Exigences fonctionnelles](#4-exigences-fonctionnelles)
+5. [Règles de gestion](#5-règles-de-gestion)
+6. [Architecture technique](#6-architecture-technique)
+7. [Exigences techniques](#7-exigences-techniques)
+8. [Extensions](#8-extensions)
+9. [Configuration](#9-configuration)
+10. [Exigences non fonctionnelles](#10-exigences-non-fonctionnelles)
+11. [Recette et tests](#11-recette-et-tests)
+12. [Périmètre et plan de livraison](#12-périmètre-et-plan-de-livraison)
+13. [Paramètres réglables](#13-paramètres-réglables)
+14. [Annexe : traçabilité des décisions](#14-annexe--traçabilité-des-décisions)
 
-Dans le cadre des activités d'une ESN (Entreprise de Services Numériques), les équipes techniques et fonctionnelles travaillent simultanément sur de multiples projets clients cloisonnés. Chaque projet nécessite un accès à de la documentation spécifique (spécifications, architectures, codes, retours d'expérience), tout en s'appuyant sur un socle de connaissances transverse et partagé (bonnes pratiques, templates, standards d'entreprise).
+Conventions : les exigences sont numérotées `EF-xx` (fonctionnelles), `ET-xx` (techniques) et `ENF-xx` (non fonctionnelles). Les règles de gestion sont numérotées `RG-xx` ; chacune fait l'objet d'au moins un test (§11).
 
-### 1.2 Objectif Principal
+---
 
-Concevoir un outil de **Banque de Contextes Multi-Vaults**, exposé aux assistants IA via le protocole MCP (et via une API REST en V2), qui soit :
+## 1. Présentation
 
-* **Plug & Play :** installation rapide par image Docker et configuration minimale par défaut.
-* **Sécurisé, Cloisonné & Imperméable :** isolation stricte des données par projet/client, avec des droits issus de l'annuaire de l'entreprise.
-* **Hiérarchique avec Héritage :** un vault de projet hérite automatiquement des sources d'un ou plusieurs vaults globaux ou transverses.
-* **Modulaire & Extensible (Override Pattern) :** les entreprises surchargent des comportements précis sans réécrire le cœur, sans pouvoir contourner ses garanties de sécurité.
+### 1.1 Contexte
 
-### 1.3 Volumétrie cible
+Dans une ESN, les équipes travaillent en parallèle sur des projets clients cloisonnés. Chaque projet a sa documentation propre (spécifications, architecture, retours d'expérience) et s'appuie sur un socle commun (standards, sécurité, templates). Les assistants IA des développeurs ont besoin de ce contexte, sans jamais mélanger les clients.
 
-Le système est dimensionné pour un grand groupe :
+### 1.2 Objectif
+
+ContextVault expose aux assistants IA, via le protocole MCP (et une API REST en V2), une banque de contextes qui est :
+
+| Propriété | Ce que cela garantit |
+|---|---|
+| **Cloisonnée** | Une personne ne voit que les vaults de ses projets ; droits issus de l'annuaire de l'entreprise |
+| **Hiérarchique** | Un vault client hérite du socle commun et des vaults intermédiaires, sans copie |
+| **En lecture seule** | L'IA consulte ; seuls des humains modifient le contenu, après relecture |
+| **Sans mémoire** | Aucune conversation n'est conservée |
+| **Plug & play** | Une image Docker, une configuration minimale |
+| **Extensible** | Chaque entreprise adapte des comportements par plugins, sans pouvoir affaiblir la sécurité |
+
+### 1.3 Cible et volumétrie
+
+Le système est dimensionné pour un grand groupe (une centaine de projets, des milliers de salariés).
 
 | Grandeur | Cible |
 |---|---|
 | Vaults projets actifs | ~100 par instance |
-| Documents | quelques milliers par vault (100 000 à 500 000 au total) |
+| Documents | quelques milliers par vault, 100 000 à 500 000 au total |
 | Extraits indexés | 1 à 5 millions |
-| Utilisateurs | plusieurs milliers ; 100 à 500 simultanés |
-| Charge | pics de 50 à 100 requêtes/s (un agent enchaîne plusieurs recherches) |
+| Utilisateurs | plusieurs milliers, dont 100 à 500 simultanés |
+| Charge | pics de 50 à 100 requêtes/s |
 
-Un grand groupe peut déployer une instance par BU ou par pays, avec un `_global-socle` synchronisé entre instances.
+Un groupe peut déployer une instance par BU ou par pays, avec un socle synchronisé entre instances.
 
 ### 1.4 Glossaire
 
-* **Vault :** ensemble de documents servis à l'IA, avec ses propres droits. Un vault correspond à un dépôt git.
-* **Socle (`_global-socle`) :** vault commun à toute l'ESN (standards, sécurité, templates), lisible par tous.
-* **Vault client :** vault d'un projet, lisible par la seule équipe habilitée ; il hérite du socle.
-* **Utilisateur (dev) :** personne qui interroge les vaults via son assistant IA. Il n'écrit jamais dans un vault via l'IA.
-* **Client IA :** logiciel qui se connecte au serveur (Claude Desktop, IDE, LLM local, plateforme interne).
+| Terme | Définition |
+|---|---|
+| Vault | Ensemble de documents servis à l'IA, avec ses propres droits. Un vault = un dépôt git |
+| Socle (`_global-socle`) | Vault commun à toute l'ESN : standards, sécurité, templates. Lisible par tous |
+| Vault client | Vault d'un projet, réservé à l'équipe habilitée ; hérite du socle |
+| Fiche contexte | Fichier `_CONTEXT.md` en tête de chaque vault : périmètre, stack, contraintes, contacts |
+| Utilisateur | Personne qui interroge les vaults via son assistant IA |
+| Client IA | Logiciel qui se connecte au serveur (assistant de code, chatbot, LLM interne) |
+| Niveau | Niveau de confidentialité d'un vault : Interne, Élevé ou Critique |
+| Extrait | Morceau de document renvoyé à l'IA (~800 tokens) |
 
 ---
 
-## 2. Architecture Fonctionnelle et Modèle de Données
+## 2. Acteurs
 
-### 2.1 Architecture de déploiement
+| Acteur | Responsabilités | Ne peut pas |
+|---|---|---|
+| Développeur / consultant | Interroge les vaults de ses projets ; propose des modifications | Voir un vault non habilité ; faire écrire l'IA dans un vault |
+| Tech lead | Relit et valide les modifications du vault de son projet | Modifier les règles obligatoires du socle |
+| Chef de projet | Demande l'ouverture et la fermeture des accès ; tient la fiche contexte ; capitalise en fin de projet | Accorder lui-même un accès |
+| Cellule architecture | Tient le socle ; relit ses évolutions | Voir les vaults clients dont elle n'est pas membre |
+| RSSI | Valide accès, règles obligatoires et dérogations ; consulte l'audit ; reçoit les alertes | — |
+| Administrateur | Crée, configure et archive les vaults | Lire un client sans en être membre (hors accès d'urgence tracé) |
+| DPO | Inscrit l'outil au registre des traitements ; valide les règles sur les données personnelles | — |
 
-* **Serveur central unique** par instance, hébergé dans l'infrastructure de l'entreprise (on-premise ou cloud souverain), en HTTPS derrière le reverse proxy de l'entreprise. Les équipes s'y connectent et n'accèdent qu'aux vaults autorisés. Aucun vault n'est copié sur les postes des utilisateurs.
-* **Serveurs MCP sans état et en lecture seule**, déployables en plusieurs instances derrière un répartiteur de charge.
-* **Indexeur séparé :** un seul processus écrit les index ; les serveurs ne font que les lire.
-* **Mode stdio :** réservé au développement de l'outil, avec des vaults fictifs.
-* **Sauvegarde :** les vaults (dépôts git) et la configuration. Les index et embeddings ne sont pas sauvegardés : ils se reconstruisent.
+---
 
-### 2.2 Sources documentaires et circuit d'écriture
+## 3. Vue d'ensemble
 
-* **Un dépôt git par vault** (GitLab / GitHub Enterprise interne). Les droits du dépôt sont alignés sur le groupe d'annuaire du vault.
-* **Seule la branche principale (protégée) est indexée.** Toute modification passe par une demande de fusion relue :
-  * vault client : proposée par un membre de l'équipe, relue par le tech lead ou le chef de projet ;
-  * `_global-socle` : relue par la cellule architecture ;
-  * documents de catégorie `mandatory` et fichiers `_DEROGATIONS.md` : validation RSSI obligatoire (CODEOWNERS).
-* **Profils non techniques :** éditeur web de la forge, ou dossier de dépôt où un Word/PDF déposé est converti et ouvre automatiquement une demande de fusion.
-* **Formats :** Markdown et texte ; PDF et Word (.docx) convertis à l'indexation (V1).
-* **Connecteurs :** un connecteur est un **importateur**, jamais un accès en direct. Il convertit la source en Markdown déposé dans le vault, qui suit ensuite le circuit normal (relecture, contrôle des données personnelles, indexation, droits du vault).
-  * V2 : Confluence (un espace = un vault ; les pages ayant leurs propres restrictions ne sont pas importées).
-  * V2 : bases SQL, **schéma uniquement** (tables, colonnes, commentaires), jamais les données.
-  * Connecteurs maison via le hook `loadDocuments()`.
+```mermaid
+flowchart LR
+    Dev["Développeur"] --> IA["Assistant IA<br/>(client MCP)"]
+    IA -- "question + jeton SSO" --> CV["ContextVault<br/>serveur MCP<br/>lecture seule"]
+    SSO["Annuaire / SSO<br/>(groupes vault-*)"] -. "identité et groupes" .-> CV
+    CV -- "extraits autorisés<br/>et étiquetés" --> IA
+    Git[("Dépôts git<br/>1 vault = 1 dépôt")] --> Idx["Indexeur"]
+    Idx --> Index[("Index par vault")]
+    Index --> CV
+    Humains["Contributeurs"] -- "demande de fusion<br/>relue" --> Git
+    CV -- "trace d'accès<br/>(sans contenu)" --> SIEM["SIEM / RSSI"]
+```
 
-### 2.3 Recherche : texte par défaut, RAG optionnel
+Le contenu n'entre que par git, après relecture humaine. L'IA ne fait que lire, et uniquement ce que l'annuaire autorise. Chaque accès laisse une trace sans contenu.
 
-* **Recherche plein texte (SQLite FTS5) toujours disponible.**
-* **RAG désactivé par défaut**, activable globalement puis **vault par vault**.
-* **Embeddings fournis par l'entreprise** via une API compatible OpenAI (`/embeddings`). Le modèle n'est pas embarqué dans le serveur.
-  * Grand groupe : endpoint de la plateforme IA interne existante.
-  * Petite structure : profil docker-compose optionnel « rag » livré (TEI + bge-m3, licence MIT).
-  * Modèle recommandé : multilingue FR/EN (bge-m3 ; alternatives : multilingual-e5-large, Qwen3-Embedding).
-* **Un seul modèle d'embeddings par instance**, enregistré dans l'index. Changer de modèle impose une revectorisation complète. En cas d'incohérence, la recherche vectorielle est coupée et le serveur repasse en recherche texte.
-* **Les vecteurs sont aussi sensibles que le texte** (partiellement réversibles) : même cloisonnement, même niveau, même suppression.
+---
 
-### 2.4 Indexation et fraîcheur
+## 4. Exigences fonctionnelles
 
-* **Un index par vault** (et non un index global) : chaque recherche ne touche que le vault ciblé et ses parents ; isolation physique entre clients ; archiver un vault revient à supprimer son index.
-* **Mise à jour par événement :** un webhook git à la fusion déclenche la réindexation des seuls fichiers modifiés. Objectif de fraîcheur : quelques minutes.
-* **Réconciliation complète nocturne** comme filet de sécurité ; commande admin « réindexer le vault X ».
-* **Bascule atomique :** le nouvel index est construit à côté de l'ancien, puis il le remplace d'un coup.
-* **Suppressions prioritaires** (notamment pour le RGPD).
-* Pas de surveillance de fichiers sur partage réseau (peu fiable sur NFS/SMB).
+### 4.1 Organisation des vaults et héritage
 
-### 2.5 Étanchéité conversationnelle (anti-pollution du contexte)
+```mermaid
+flowchart TD
+    S["_global-socle<br/>Interne · lisible par tous"]
+    P["pole-data<br/>Interne · vault de pôle"]
+    C1["client-7f3a<br/>Élevé"]
+    C2["client-b21e<br/>Élevé"]
+    C3["client-90cd<br/>Critique"]
+    S --> P
+    S --> C1
+    P --> C2
+    S --> C3
+```
 
-* **Lecture seule stricte :** aucune opération d'écriture n'est exposée, quelle que soit la façade (MCP ou REST). Le champ `read_only` de la V4 est supprimé : il n'existe pas de vault inscriptible.
-* **Isolation de la session :** le serveur ne conserve aucune conversation, question ou réponse. Le journal d'audit ne contient pas le texte des requêtes.
-* **L'IA peut aider à rédiger** (ex. retour d'expérience), mais seul un humain soumet la proposition, sous son nom, et elle passe en relecture.
+| Id | Exigence |
+|---|---|
+| EF-01 | Un vault déclare zéro, un ou plusieurs parents. La chaîne d'héritage est : le vault ciblé, puis ses parents dans l'ordre déclaré, en profondeur d'abord, sans doublon. |
+| EF-02 | Héritage strict : un parent n'est inclus que si l'utilisateur y a aussi accès. L'héritage est une règle de configuration, jamais une autorisation. |
+| EF-03 | Si une source héritée est filtrée, la réponse indique « N source(s) héritée(s) non accessible(s) avec vos droits », sans nom ni contenu. |
+| EF-04 | Un vault ne peut pas hériter d'un vault de niveau de confidentialité supérieur au sien. |
+| EF-05 | Cycles et parents inconnus sont refusés au démarrage ; un vault dont le groupe n'a pas accès à l'un de ses parents est signalé. |
 
-### 2.6 Identité et droits d'accès
+### 4.2 Priorité entre socle, client et utilisateur
 
-* **Authentification :** SSO OIDC (Keycloak, Entra ID…) via le flux OAuth du transport HTTP MCP.
-* **Rôles résolus côté serveur** à partir des groupes de l'annuaire. **Aucun rôle n'est déclaré par le client IA ni par le LLM.**
-* **Clients IA sans OAuth** (LLM locaux) : jeton personnel par utilisateur, émis depuis un portail derrière le SSO, révocable et à durée limitée. Il identifie l'utilisateur ; ses rôles restent calculés côté serveur.
-* **Un groupe d'annuaire par vault** (ex. `vault-client-7f3a`). `access_roles` ne contient que des noms de groupes, jamais de personnes.
-  * Demande d'accès : chef de projet. Validation et exécution : IT/RSSI via le circuit habituel.
-  * Revue trimestrielle des membres ; groupe vidé en fin de projet.
-* **Délais de prise d'effet :** ajout à la prochaine connexion ; retrait en 15 minutes au plus (jetons de 15 minutes, groupes en cache 5 minutes au plus) ; révocation immédiate en désactivant le compte dans l'annuaire.
-* **Pas de super-admin implicite :** un administrateur doit être membre du groupe d'un client pour en voir le contenu. Un accès d'urgence (« break-glass ») passe par un rôle dédié, journalisé et notifié au RSSI à chaque usage.
+Les documents du socle déclarent une catégorie dans leur en-tête : `mandatory` (sécurité, légal, RGPD, secrets) ou `default` (stack, conventions, templates, outillage).
 
-### 2.7 Héritage
+```mermaid
+flowchart LR
+    A["1. Socle obligatoire"] --> B["2. Vault client"] --> C["3. Demande de l'utilisateur"] --> D["4. Socle par défaut"]
+```
 
-* La chaîne d'héritage est : le vault ciblé, puis ses parents dans l'ordre déclaré (profondeur d'abord, sans doublon). Cycles et parents inconnus sont refusés au démarrage.
-* **Mode strict :** un vault hérité n'est inclus que si l'utilisateur y a aussi accès. L'héritage est une règle de configuration, pas une autorisation.
-* **Contrôle au démarrage :** le serveur signale chaque vault dont le groupe n'a pas accès à l'un de ses parents.
-* **Information sans fuite :** si une source héritée est filtrée, la réponse indique « N source(s) héritée(s) non accessible(s) avec vos droits », sans nom ni contenu.
-* **Un vault ne peut pas hériter d'un vault de niveau de confidentialité supérieur au sien.**
+| Id | Exigence |
+|---|---|
+| EF-06 | Chaque extrait est étiqueté : « Règle obligatoire ESN », « Spécifique client » ou « Standard ESN, remplaçable ». L'ordre de priorité est donné à l'IA dans les instructions de connexion. |
+| EF-07 | Une règle client plus stricte qu'une règle obligatoire s'applique. Une dérogation à une règle obligatoire est écrite dans `_DEROGATIONS.md`, validée par le RSSI ou l'architecte référent, et porte une date d'expiration. |
+| EF-08 | Le serveur n'interprète pas le sens des textes : il étiquette et ordonne. |
 
-### 2.8 Niveaux de confidentialité
+### 4.3 Fiche contexte
 
-Chaque vault déclare un niveau. **Un vault sans niveau déclaré est traité comme Élevé.**
+| Id | Exigence |
+|---|---|
+| EF-09 | Chaque vault contient `_CONTEXT.md` à sa racine (~1 500 tokens max) : périmètre, stack, contraintes, contacts. |
+| EF-10 | La fiche ne déclare ni droits ni héritage. Une section d'accès qui s'y trouverait est ignorée et signalée. |
+| EF-11 | L'outil `get_vault_context` renvoie la fiche précédée d'un en-tête calculé (vault, héritage, niveau). Chaque réponse de recherche commence par un en-tête court (~100 tokens) qui rappelle la fiche. |
+
+### 4.4 Parcours d'une question
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Développeur
+    participant IA as Assistant IA
+    participant CV as ContextVault
+    participant SSO as Annuaire / SSO
+    participant Audit as Audit
+    Dev->>IA: Question sur le projet
+    IA->>CV: search(vault, requête) + jeton
+    CV->>SSO: Vérifier le jeton, lire les groupes
+    SSO-->>CV: Identité et groupes vault-*
+    CV->>CV: Contrôle 1 : l'utilisateur a-t-il droit au vault ?
+    CV->>CV: Contrôle 2 : ce client IA est-il autorisé pour ce niveau ?
+    alt Refusé
+        CV->>Audit: Refus tracé
+        CV-->>IA: Réponse neutre (sans révéler si le vault existe)
+    else Accordé
+        CV->>CV: Recherche dans le vault et ses parents accessibles
+        CV->>Audit: Accès tracé (documents renvoyés, sans texte)
+        CV-->>IA: Extraits étiquetés + en-tête de fiche
+    end
+    IA-->>Dev: Réponse
+```
+
+### 4.5 Identité et droits d'accès
+
+| Id | Exigence |
+|---|---|
+| EF-12 | Authentification par le SSO de l'entreprise (OIDC : Keycloak, Entra ID…). |
+| EF-13 | Les rôles sont calculés côté serveur à partir des groupes de l'annuaire. Aucun rôle n'est déclaré par le client IA ni par le LLM. |
+| EF-14 | Un groupe d'annuaire par vault (ex. `vault-client-7f3a`). La configuration ne référence que des groupes, jamais des personnes. |
+| EF-15 | Demande d'accès par le chef de projet ; validation et exécution par l'IT ou le RSSI, via le circuit habituel. Revue trimestrielle des membres ; groupe vidé en fin de projet. |
+| EF-16 | Délais de prise d'effet : ajout à la prochaine connexion ; retrait en 15 minutes au plus ; désactivation du compte effective à la requête suivante. |
+| EF-17 | Aucun super-admin : un administrateur doit être membre du groupe d'un client pour en voir le contenu. Un accès d'urgence dédié existe ; chaque usage est tracé et notifié au RSSI. |
+| EF-18 | Les clients IA sans OAuth (LLM locaux) utilisent un jeton personnel émis depuis un portail derrière le SSO, révocable et à durée limitée. |
+
+### 4.6 Niveaux de confidentialité
+
+Chaque vault déclare un niveau. **Un vault sans niveau est traité comme Élevé.**
 
 | | Interne | Élevé | Critique |
 |---|---|---|---|
-| Exemple | `_global-socle`, pôles métier | projet client standard | défense, santé… |
-| Clients IA autorisés | tous | clients sous contrat entreprise (sans entraînement sur les données) | LLM hébergé en interne uniquement |
-| Embeddings (RAG) | au choix, API externe permise | modèle interne uniquement | modèle interne, ou RAG désactivé |
-| Journal d'audit | refus uniquement | complet | complet + alerte sur volume anormal |
-| Authentification | SSO | SSO | SSO + MFA, jetons plus courts |
+| Exemples | Socle, vaults de pôle | Projet client courant | Défense, santé, données sensibles |
+| Clients IA autorisés | Tous | Sous contrat entreprise, sans entraînement sur les données | LLM hébergé en interne uniquement |
+| Recherche sémantique | API externe permise | Modèle interne uniquement | Modèle interne, ou désactivée |
+| Audit | Refus uniquement | Tous les accès | Tous les accès + alerte sur volume anormal |
+| Authentification | SSO | SSO | SSO + MFA, jetons plus courts, certificat client |
+| Nom du client | — | Masqué dans identifiants et journaux | Masqué ; nom de code possible dans les réponses |
 
-* Les clients IA sont enregistrés ; la liste des clients autorisés par niveau figure dans la configuration. Le serveur refuse de servir un vault à un client non autorisé pour son niveau.
-* **Limite assumée :** le serveur ne peut pas empêcher un copier-coller manuel ; il bloque le cas courant et le trace.
+| Id | Exigence |
+|---|---|
+| EF-19 | Le serveur refuse de servir un vault à un client IA non autorisé pour son niveau. La liste des clients autorisés par niveau est dans la configuration. |
+| EF-20 | Limite assumée : le serveur ne peut pas empêcher un copier-coller manuel. Il bloque le cas courant et le trace. Seul le niveau Critique garantit techniquement le destinataire. |
 
-### 2.9 Identifiants neutres
+### 4.7 Identifiants neutres
 
-* **Tous les vaults client** ont un identifiant neutre (code court aléatoire, ex. `client-7f3a`), quel que soit leur niveau. Les vaults transverses gardent un nom lisible.
-* L'identifiant neutre est utilisé pour l'id du vault, le dossier, le groupe d'annuaire, les logs, l'audit et le SIEM.
-* Le vrai nom figure dans `display_name` et n'est affiché qu'aux membres du groupe.
-* Le contenu des documents n'est pas réécrit. Option pour le niveau Critique : remplacement du nom par un nom de code via `formatContextChunk`.
+| Id | Exigence |
+|---|---|
+| EF-21 | Tout vault client a un identifiant neutre (code court aléatoire, ex. `client-7f3a`), utilisé pour l'id, le dossier, le groupe, les logs, l'audit et le SIEM. Les vaults transverses gardent un nom lisible. |
+| EF-22 | Le vrai nom figure dans `display_name` et n'est affiché qu'aux membres du groupe. Option Critique : remplacement du nom par un nom de code dans les extraits. |
 
-### 2.10 Fiche contexte du vault
+### 4.8 Publication du contenu
 
-* Chaque vault contient un fichier **`_CONTEXT.md`** à sa racine (fiche client : périmètre, stack, contraintes, contacts), limité à environ 1 500 tokens.
-* La fiche **ne déclare ni droits ni héritage** : la configuration fait foi. Une section d'accès trouvée dans une fiche est ignorée et signalée dans les logs.
-* L'outil MCP **`get_vault_context`** renvoie la fiche, précédée d'un en-tête calculé depuis la configuration (vault, héritage, niveau). La fiche est aussi exposée comme ressource MCP.
-* Les instructions de connexion du serveur MCP demandent à l'IA de lire ce contexte avant de travailler sur un vault.
-* Chaque réponse de recherche commence par un en-tête court (~100 tokens) : vault, niveau, résumé de la fiche, renvoi vers `get_vault_context`.
+```mermaid
+flowchart LR
+    A["Contributeur<br/>(ou brouillon rédigé par l'IA,<br/>soumis par un humain)"] --> B["Demande de fusion"]
+    W["Dépôt Word / PDF<br/>(profils non techniques)"] --> Conv["Conversion<br/>en Markdown"] --> B
+    B --> D{"Détection données<br/>personnelles et secrets"}
+    D -- "bloquant" --> X["Refus + alerte<br/>auteur et RSSI"]
+    D -- "OK" --> R{"Relecture"}
+    R -- "refusée" --> A
+    R -- "validée" --> M["Fusion sur la<br/>branche protégée"]
+    M --> I["Indexation<br/>en quelques minutes"]
+    I --> S["Servi à l'IA"]
+```
 
-### 2.11 Priorité entre socle, client et utilisateur
+| Ce qui change | Qui propose | Qui valide |
+|---|---|---|
+| Vault client | Membre de l'équipe | Tech lead ou chef de projet |
+| Socle, règle par défaut | Tout salarié | Cellule architecture |
+| Socle, règle obligatoire | Cellule architecture ou RSSI | RSSI |
+| Dérogation d'un client | Chef de projet | RSSI ou architecte référent |
 
-Les documents du socle déclarent leur catégorie dans leur en-tête (`priority`) :
+| Id | Exigence |
+|---|---|
+| EF-23 | Seule la branche principale protégée est indexée. Tout changement passe par une demande de fusion relue (CODEOWNERS). |
+| EF-24 | Formats V1 : Markdown, texte, PDF, Word. Un fichier Word ou PDF déposé est converti et ouvre automatiquement une demande de fusion. |
+| EF-25 | Les connecteurs sont des importateurs : ils déposent du Markdown qui suit le circuit normal. Jamais d'accès direct à une source externe. |
+| EF-26 | L'IA peut aider à rédiger ; seul un humain soumet, sous son nom. |
 
-* `mandatory` : sécurité, légal, RGPD, secrets, OWASP…
-* `default` : stack, conventions, templates, outillage.
+### 4.9 Données personnelles (RGPD)
 
-**Ordre de priorité :** socle obligatoire > vault client > demande de l'utilisateur dans sa conversation > socle par défaut.
+| Id | Exigence |
+|---|---|
+| EF-27 | Tolérées : coordonnées professionnelles des interlocuteurs du projet. Interdites : données des utilisateurs finaux du client (formulaires, exports, logs de production). Les jeux de données d'exemple sont fictifs. |
+| EF-28 | Un fichier contenant des données personnelles au-delà d'un seuil, ou un secret, n'est pas indexé ; l'auteur et le RSSI sont alertés. |
+| EF-29 | Droit à l'effacement : suppression à la source, puis purge de l'index (texte et vecteurs) en priorité. Aucune copie conservée ailleurs. |
+| EF-30 | L'outil est inscrit au registre des traitements par le DPO, avec une AIPD si des vaults Critique sont concernés. |
 
-* Une règle client plus stricte qu'une règle obligatoire s'applique (elle ne la contredit pas).
-* **Dérogation** à une règle obligatoire : fichier `_DEROGATIONS.md` dans le vault client, validé par le RSSI ou l'architecte référent, avec date d'expiration.
-* Le serveur n'interprète pas le sens des textes. Il **étiquette** chaque extrait (« Règle obligatoire ESN », « Spécifique client », « Standard ESN, remplaçable ») et donne l'ordre de priorité à l'IA dans ses instructions de connexion.
+### 4.10 Journal d'audit
 
-### 2.12 Données personnelles (RGPD)
+| Id | Exigence |
+|---|---|
+| EF-31 | Une ligne par appel : date, utilisateur, client IA, action, vault, documents renvoyés (chemin et version), résultat, nombre d'extraits, latence. |
+| EF-32 | Jamais le texte des questions ni des extraits. |
+| EF-33 | Les refus sont tracés à tous les niveaux ; des refus répétés déclenchent une alerte RSSI. Les accès accordés par une extension alors que la règle standard les aurait refusés sont tracés à part. |
+| EF-34 | Envoi en continu au SIEM ; accès réservé au RSSI ; entrées non modifiables ; conservation 6 mois à 1 an. |
 
-* **Tolérées :** coordonnées professionnelles des interlocuteurs du projet (nom, rôle, email pro), limitées au strict utile.
-* **Interdites :** données des utilisateurs finaux du client (envois de formulaires, exports de base, logs de production, fichiers clients). Les jeux de données d'exemple sont fictifs.
-* **Contrôle à l'indexation** (hook `detectPersonalData`) : emails en masse, téléphones, IBAN, NIR, adresses IP. Au-delà d'un seuil, le fichier n'est pas indexé et l'auteur et le RSSI sont alertés.
-* **Droit à l'effacement :** suppression ou correction du fichier source, puis purge de l'index (texte et vecteurs) en priorité. Aucune copie n'est conservée ailleurs.
-* **Organisation :** l'outil traite des données personnelles (identités des salariés, audit). Il doit être inscrit au registre des traitements via le DPO, avec une AIPD si des vaults Critique sont concernés.
+### 4.11 Cycle de vie d'un vault
 
-### 2.13 Journal d'audit
+```mermaid
+stateDiagram-v2
+    [*] --> Prospect
+    Prospect --> Actif: contrat signé
+    Prospect --> Supprimé: perdu (6 mois)
+    Actif --> Maintenance: passage en TMA
+    Actif --> Archivé: fin de projet (après capitalisation)
+    Maintenance --> Archivé: fin de TMA
+    Archivé --> Actif: réactivation
+    Archivé --> Supprimé: fin de conservation (5 ans)
+    Supprimé --> [*]
+```
 
-* **Une ligne JSON par appel :** date, utilisateur, client IA, action, vault, **documents renvoyés (chemin et version)**, résultat (accordé/refusé), nombre d'extraits, latence.
-* **Jamais** le texte des questions ni les extraits.
-* Les refus sont tracés pour tous les niveaux ; des refus répétés déclenchent une alerte RSSI.
-* Les accès accordés par une extension alors que la règle par défaut les aurait refusés sont tracés à part.
-* Envoi en continu vers le SIEM de l'entreprise (hook `onAuditEvent`) ; rien n'est stocké dans les vaults ni dans l'index ; accès réservé au RSSI ; entrées non modifiables.
-* **Conservation :** 6 mois à 1 an (recommandation CNIL pour les journaux d'accès).
+| État | L'IA y accède ? | Ce qui se passe |
+|---|---|---|
+| Prospect | Oui, équipe d'avant-vente | Appels d'offres, specs transmises |
+| Actif | Oui, équipe projet | Usage normal |
+| Maintenance | Oui, équipe TMA | Souvent une équipe réduite |
+| Archivé | Non | Sorti de l'index ; groupe vidé ; fichiers conservés hors serveur |
+| Supprimé | Non | Tout est effacé ; suppression tracée |
 
-### 2.14 Cycle de vie des vaults
+| Id | Exigence |
+|---|---|
+| EF-35 | Chaque vault porte un statut et une date de revue ; une date dépassée est signalée aux administrateurs. |
+| EF-36 | Avant archivage, le chef de projet extrait les retours d'expérience utiles, anonymisés et relus, vers le socle ou un vault de pôle. |
+| EF-37 | Un vault archivé est inaccessible, quelle que soit l'extension installée. La réactivation suit le circuit des accès. |
 
-Champ `status` : `prospect`, `actif`, `maintenance`, `archivé`, avec une date de revue. Une date dépassée est signalée aux administrateurs.
+---
 
-* **Prospect perdu :** suppression du vault 6 mois après la perte, ou selon l'accord de confidentialité.
-* **Projet terminé :**
-  1. Capitalisation : le chef de projet extrait les retours d'expérience utiles, anonymisés et relus, vers `_global-socle` ou un vault de pôle.
-  2. Archivage : le vault sort de l'index (vecteurs compris), le groupe est vidé, aucune IA n'y a plus accès.
-  3. Conservation des fichiers en lecture seule, hors serveur, pendant la durée contractuelle (5 ans par défaut).
-  4. Suppression à l'échéance, tracée dans l'audit.
-* **Maintenance (TMA) :** le vault reste servi, à une équipe souvent réduite.
-* **Réactivation** sur demande du chef de projet, par le même circuit que les accès.
+## 5. Règles de gestion
 
-### 2.15 Configuration centralisée (`vaults.config.json`)
+Chaque règle a au moins un test automatisé portant son numéro (§11).
 
-La configuration est **la source de vérité** pour les droits, l'héritage, les niveaux et le cycle de vie. Elle est versionnée dans git ; chaque modification est relue et validée par l'IT ou le RSSI.
+| Domaine | Règle | Énoncé |
+|---|---|---|
+| Accès | RG-01 | Une personne ne voit un vault que si elle appartient à son groupe dans l'annuaire. |
+| | RG-02 | Les droits sont déduits du compte d'entreprise ; ni l'assistant IA ni l'utilisateur ne peuvent les déclarer. |
+| | RG-03 | Un vault inexistant et un vault interdit donnent la même réponse. |
+| | RG-04 | Aucun rôle ne voit tous les clients ; l'accès d'urgence est tracé et signalé au RSSI. |
+| Héritage | RG-05 | Un vault client reçoit le contenu de ses parents, sans copie. |
+| | RG-06 | Un parent n'est inclus que si la personne y a accès ; sinon « N source(s) non accessible(s) », sans nom ni contenu. |
+| | RG-07 | Un vault ne peut pas hériter d'un vault de niveau supérieur. |
+| Priorité | RG-08 | Ordre : socle obligatoire, puis client, puis demande de l'utilisateur, puis socle par défaut. |
+| | RG-09 | Une dérogation est écrite, validée par le RSSI et datée d'une expiration. |
+| | RG-10 | Chaque extrait indique sa provenance : obligatoire, spécifique client ou standard remplaçable. |
+| Lecture seule | RG-11 | L'IA ne peut ni créer, ni modifier, ni supprimer un document. |
+| | RG-12 | Aucune question ni réponse n'est enregistrée, ni dans les vaults ni dans les journaux. |
+| | RG-13 | Seul le contenu validé après relecture est servi ; un brouillon ne l'est jamais. |
+| Données personnelles | RG-14 | Coordonnées professionnelles tolérées ; données des utilisateurs finaux interdites. |
+| | RG-15 | Un document contenant des données personnelles en nombre n'est pas servi ; l'auteur et le RSSI sont alertés. |
+| | RG-16 | Un document supprimé à la source disparaît des réponses en priorité, sans copie conservée. |
+| Audit | RG-17 | Chaque accès est tracé : qui, quand, quel assistant, quel vault, quels documents, accordé ou refusé. |
+| | RG-18 | Le journal ne contient jamais le texte des questions ni des extraits. |
+| | RG-19 | Des refus répétés pour une même personne déclenchent une alerte au RSSI. |
+| | RG-20 | Le journal est conservé 6 mois à 1 an, consultable par le seul RSSI, non modifiable. |
+| Adaptation | RG-21 | Une extension ne peut pas lever la lecture seule, rouvrir un vault archivé, ignorer le niveau ni couper l'audit. |
+| | RG-22 | Un accès accordé par une extension alors que la règle standard l'aurait refusé est tracé à part. |
+
+---
+
+## 6. Architecture technique
+
+### 6.1 Composants
+
+```mermaid
+flowchart TB
+    subgraph Clients
+        A1["Assistants de code"]
+        A2["LLM interne<br/>(Critique, mTLS)"]
+        A3["Plateformes internes<br/>(REST, V2)"]
+    end
+    subgraph ContextVault
+        LB["Répartiteur de charge"]
+        S1["Serveur MCP #1"]
+        S2["Serveur MCP #N"]
+        IDX["Indexeur<br/>(instance unique)"]
+    end
+    subgraph Entreprise
+        OIDC["SSO OIDC"]
+        FORGE[("Forge git")]
+        OBJ[("Stockage S3<br/>index + manifeste")]
+        EMB["Service d'embeddings<br/>(optionnel)"]
+        SIEM["SIEM"]
+    end
+    A1 & A2 & A3 --> LB --> S1 & S2
+    S1 & S2 -. "JWT, groupes" .-> OIDC
+    FORGE -- "webhook = réveil" --> IDX
+    IDX -- "git fetch (lecture seule)" --> FORGE
+    IDX -- "publie index immuables" --> OBJ
+    OBJ -- "télécharge + vérifie empreinte" --> S1 & S2
+    IDX & S1 & S2 -.-> EMB
+    S1 & S2 -- "audit" --> SIEM
+```
+
+| Id | Exigence |
+|---|---|
+| ET-01 | Langage : TypeScript sur Node.js LTS (22+), SDK MCP officiel. |
+| ET-02 | Deux processus, une base de code : serveurs MCP sans état et en lecture seule (N instances) ; indexeur, seul à écrire les index (une instance). |
+| ET-03 | Les index SQLite ne sont jamais partagés sur un disque réseau. L'indexeur publie des fichiers immuables par vault dans un stockage objet compatible S3, avec un manifeste (version et empreinte). Chaque serveur consulte le manifeste (~10 s), télécharge, vérifie l'empreinte et bascule. En Docker Compose mono-machine, un dossier local suffit. |
+| ET-04 | Sauvegarde : dépôts git et configuration. Les index se reconstruisent et ne sont pas sauvegardés. |
+
+### 6.2 Chaîne d'indexation
+
+```mermaid
+flowchart TD
+    W["Fusion sur la branche protégée"] --> H["Webhook signé<br/>(simple réveil)"]
+    H --> F["git fetch<br/>copie locale lecture seule"]
+    F --> Diff["Diff entre dernier commit indexé<br/>et nouveau commit"]
+    Diff --> Q["File : suppressions d'abord"]
+    Q --> C["Conversion Word / PDF<br/>(conteneur isolé)"]
+    C --> P{"Données personnelles<br/>et secrets"}
+    P -- "bloquant" --> AL["Fichier ignoré<br/>+ alerte"]
+    P -- "OK" --> K["Découpage<br/>~800 tokens par titres"]
+    K --> E["Embeddings<br/>(si RAG actif)"]
+    E --> B["Nouvelle version d'index"]
+    B --> S3["Publication S3<br/>+ manifeste mis à jour en dernier"]
+    N["Réconciliation nocturne"] --> F
+```
+
+---
+
+## 7. Exigences techniques
+
+### 7.1 Stockage et recherche
+
+| Id | Exigence |
+|---|---|
+| ET-05 | Stockage derrière une interface. Par défaut : SQLite + FTS5, un fichier par vault (cloisonnement physique). Grands comptes (V2) : adaptateur PostgreSQL, un schéma par vault. |
+| ET-06 | Recherche plein texte toujours disponible, avec racinisation française. |
+| ET-07 | RAG désactivé par défaut, activable globalement puis vault par vault. Vecteurs stockés avec le texte (sqlite-vec ou pgvector). |
+| ET-08 | Embeddings fournis par l'entreprise via une API compatible OpenAI ; profil Docker Compose « rag » livré (TEI + bge-m3) pour les petites structures. Un seul modèle par instance, enregistré dans l'index ; incohérence = retour au texte seul. |
+| ET-09 | Les vecteurs sont aussi sensibles que le texte : même cloisonnement, même niveau, même suppression. |
+| ET-10 | Fusion par rang (RRF) entre texte et vecteurs ; léger avantage au vault ciblé ; une règle obligatoire pertinente n'est jamais écartée. Reclassement optionnel (bge-reranker-v2-m3) sur GPU. |
+| ET-11 | Découpage selon les titres, ~800 tokens (max ~1 500), ~10 % de chevauchement, jamais de coupe dans un bloc de code ou un tableau. 5 extraits par recherche par défaut. |
+
+### 7.2 Indexation
+
+| Id | Exigence |
+|---|---|
+| ET-12 | Copie git par vault en lecture seule ; webhook signé servant de réveil ; seuls les fichiers modifiés sont retraités ; version d'un extrait = identifiant de commit. |
+| ET-13 | Historique réécrit = réindexation complète du vault. Réconciliation nocturne et commande admin « réindexer le vault X ». |
+| ET-14 | Bascule atomique : le nouvel index est construit à côté de l'ancien. Suppressions prioritaires. |
+| ET-15 | Conversion : mammoth (Word) et pdf.js (PDF) inclus ; Docling en service optionnel. Conversion de préférence au dépôt, dans un conteneur sans réseau, avec limites de taille et de durée. |
+| ET-16 | Détection : emails, téléphones, IBAN, NIR, carte bancaire, IP, avec clés de contrôle. Bloquant dès une occurrence : NIR, IBAN, carte, secrets. Bloquant au-delà d'un seuil : emails, téléphones. Presidio en option pour les noms. Même détecteur à la demande de fusion, au dépôt et dans l'indexeur. |
+
+### 7.3 Interfaces
+
+**Outils MCP (lecture seule)**
+
+| Outil | Rôle |
+|---|---|
+| `list_vaults` | Vaults accessibles, avec leur chaîne d'héritage effective |
+| `get_vault_context` | Fiche `_CONTEXT.md` et en-tête calculé (aussi exposée en ressource MCP) |
+| `search` | Recherche dans un vault et ses parents accessibles ; extraits étiquetés |
+| `read_document` | Lecture d'un document ; chemin contrôlé, aucune sortie du vault |
+| `list_documents` | Liste paginée des documents d'un vault |
+
+| Id | Exigence |
+|---|---|
+| ET-17 | Transport MCP HTTP « streamable », sans session ; SSE non supporté ; stdio réservé au développement. Versions supportées : dernière spécification stable et la précédente. |
+| ET-18 | Garde-fous : limite de requêtes par utilisateur (signalée à l'audit), taille maximale de réponse, délai maximum par requête. |
+| ET-19 | Chaque réponse contient un texte balisé pour l'IA et un JSON structuré équivalent. Les erreurs sont neutres. |
+| ET-20 | Endpoints techniques V1 : `/healthz`, `/readyz`, `/metrics`, webhook de réindexation, réindexation admin. V2 : API REST de recherche, miroir exact des outils MCP, documentée en OpenAPI. |
+| ET-21 | MCP et REST sont des façades minces : authentification, droits, niveaux et audit sont appliqués dans le moteur. |
+
+### 7.4 Sécurité
+
+| Id | Exigence |
+|---|---|
+| ET-22 | Le serveur est un serveur de ressources OAuth : il vérifie signature, émetteur et audience de chaque jeton (15 minutes). Groupes lus dans le jeton (préfixe `vault-`, identifiant stable), repli sur l'annuaire avec cache de 5 minutes. Vaults Critique : introspection à chaque requête. |
+| ET-23 | Le nom annoncé par un client IA n'est jamais une preuve. Clients préenregistrés dans l'annuaire ; enregistrement dynamique interdit. Élevé : accès conditionnel (postes gérés), clients déployés par la DSI. Critique : LLM interne uniquement, avec certificat client (mTLS), joignable depuis son réseau seulement. |
+| ET-24 | Injection de consignes : extraits placés dans des balises infalsifiables (jeton aléatoire par réponse) ; tout texte imitant ces balises est neutralisé ; les instructions de connexion précisent que les extraits sont de la documentation, pas des ordres. |
+| ET-25 | Chemins de fichiers normalisés ; toute sortie d'un vault est refusée. |
+| ET-26 | Audit : événement écrit dans un tampon local (ajout seul) avant la réponse, puis transmis au SIEM (syslog TLS, HTTP, sortie standard ou hook). Chaîne d'empreintes entre événements. Tampon impossible à écrire : refus en Élevé et Critique, accès maintenu avec alerte en Interne. |
+| ET-27 | TLS partout ; disques chiffrés obligatoires pour Élevé et Critique ; stockage des index en écriture pour l'indexeur seul. |
+
+### 7.5 Exploitation
+
+| Id | Exigence |
+|---|---|
+| ET-28 | Une image Docker multi-architecture, deux modes : Docker Compose et chart Helm (Kubernetes, OpenShift). Exécution sans root ; installation hors ligne possible. |
+| ET-29 | Images signées, SBOM publié, analyse de vulnérabilités en CI. Versions semver ; une version à support long par an. |
+| ET-30 | OpenTelemetry (métriques, traces) et logs JSON, sans aucun contenu. Trois flux séparés : logs techniques, métriques et traces, audit. |
+| ET-31 | Alertes fournies : p95 > 200 ms, retard d'index > 15 min, pic de refus, service optionnel en panne. Un serveur n'est pas prêt tant que ses index ne sont pas chargés. |
+
+### 7.6 Licence
+
+| Id | Exigence |
+|---|---|
+| ET-32 | Open core : cœur sous Apache 2.0, contenant toute la sécurité (SSO, droits, niveaux, audit). Offre payante : support, version à support long, fonctions grands comptes (adaptateur PostgreSQL, connecteurs, interface d'administration). |
+| ET-33 | Aucune dépendance GPL ou AGPL ; contrôle de licences bloquant en CI. |
+
+---
+
+## 8. Extensions
+
+### 8.1 Principe
+
+Le moteur se personnalise par **plugins composables** (modèle middleware), jamais par héritage de classe : plusieurs plugins écrits par des équipes différentes cohabitent, et une mise à jour du cœur ne casse pas un plugin conforme.
+
+```mermaid
+flowchart LR
+    R["Requête"] --> P1["Plugin A<br/>(ex. habilitation RH)"]
+    P1 -- "next()" --> P2["Plugin B"]
+    P2 -- "next()" --> STD["Comportement standard"]
+    STD --> INV{"Invariants du cœur<br/>(non surchargeables)"}
+    INV --> OUT["Réponse"]
+```
+
+| Mode de combinaison | Hooks |
+|---|---|
+| En chaîne avec `next()` | accès, rôles, héritage, métadonnées, découpage, classement, formatage |
+| Premier qui prend en charge | `loadDocuments`, `convertDocument`, `embed` |
+| Tous | `detectPersonalData` (le plus strict l'emporte), `onAuditEvent`, `onAlert` |
+
+### 8.2 Hooks publics
+
+| Domaine | Hook | Usage |
+|---|---|---|
+| Identité et accès | `authenticateToken(token)` | Valider un jeton OIDC ou personnel |
+| | `resolveUserRoles(user)` | Enrichir les rôles depuis l'annuaire |
+| | `resolveVaultAccess(ctx, next)` | Règle d'accès spécifique |
+| | `isClientAllowed(client, level)` | Clients IA autorisés par niveau |
+| Contenu | `computeInheritance(vaultId)` | Chaîne de résolution des vaults hérités |
+| | `loadDocuments(vault)` | Connecteurs maison |
+| | `convertDocument(file)` | Conversion PDF, Word, autres formats |
+| | `extractMetadata(doc)` | Titre, catégorie `mandatory` / `default` |
+| | `detectPersonalData(doc)` | Détection de données personnelles |
+| | `chunkDocument(doc)` | Découpage en extraits |
+| Recherche et rendu | `embed(texts)` | Calcul des embeddings |
+| | `rankResults(textHits, vectorHits)` | Classement et fusion |
+| | `formatContextChunk(chunk)` | Formatage d'un extrait |
+| | `formatVaultContext(vault)` | En-tête de la fiche contexte |
+| Exploitation | `onAuditEvent(event)` | Export vers le SIEM |
+| | `onAlert(alert)` | Alertes RSSI et administrateurs |
+
+### 8.3 Invariants non surchargeables
+
+Vérifiés par le cœur après les hooks :
+
+1. Lecture seule : aucune écriture possible.
+2. Un vault archivé reste inaccessible.
+3. Le niveau de confidentialité et la liste des clients IA autorisés sont appliqués.
+4. Les chemins de fichiers sont contrôlés.
+5. L'audit est toujours émis.
+
+### 8.4 Exemple
+
+Exiger, en plus de l'appartenance au groupe, une habilitation projet valide dans le SI RH :
+
+```ts
+import { definePlugin } from '@contextvault/sdk';
+import { habilitationValide } from './si-rh';
+
+export default definePlugin({
+  name: 'habilitation-rh',
+  apiVersion: 1,
+  hooks: {
+    // Restreint l'accès : règle standard ET habilitation projet valide.
+    async resolveVaultAccess(ctx, next) {
+      if (!(await next())) return false;
+      return habilitationValide(ctx.user, ctx.vault);
+    },
+  },
+});
+```
+
+### 8.5 Livraison et compatibilité
+
+| Id | Exigence |
+|---|---|
+| ET-34 | Un plugin est un paquet npm du registre privé de l'entreprise, intégré dans une image dérivée signée construite par sa CI. Le chargement depuis un dossier est réservé au développement. |
+| ET-35 | Un plugin est du code de confiance : les plugins de sécurité sont relus et validés par le RSSI. |
+| ET-36 | La liste des hooks est une API publique versionnée (semver) ; `apiVersion` est vérifiée au démarrage ; un hook déprécié reste disponible une version majeure entière. |
+| ET-37 | Une suite de tests de contrat et un modèle de projet de plugin sont fournis. |
+
+---
+
+## 9. Configuration
+
+La configuration `vaults.config.json` est la source de vérité pour les droits, l'héritage, les niveaux et le cycle de vie. Elle est versionnée dans git ; chaque modification est relue par l'IT ou le RSSI.
 
 ```json
 {
   "version": "2.0.0",
   "settings": {
     "enable_rag": false,
-    "rag": {
-      "endpoint": "https://embeddings.interne.example/v1",
-      "model": "bge-m3"
-    },
+    "rag": { "endpoint": "https://embeddings.interne.example/v1", "model": "bge-m3" },
     "allowed_clients": {
       "interne": ["*"],
       "eleve": ["claude-enterprise", "copilot-enterprise", "llm-interne"],
       "critique": ["llm-interne"]
-    }
+    },
+    "plugins": ["@entreprise/contextvault-habilitation-rh"]
   },
   "vaults": [
     {
@@ -229,188 +604,121 @@ La configuration est **la source de vérité** pour les droits, l'héritage, les
 }
 ```
 
-Validation au démarrage : identifiants uniques, parents existants, absence de cycle, héritage compatible avec les niveaux, index hors des vaults.
+Validation au démarrage, sinon refus de démarrer : identifiants uniques, parents existants, absence de cycle, héritage compatible avec les niveaux, index hors des vaults, endpoint d'embeddings interne pour les vaults Élevé et Critique.
 
 ---
 
-## 3. Spécifications Techniques
+## 10. Exigences non fonctionnelles
 
-### 3.1 Stack
-
-* **Langage :** TypeScript / Node.js (LTS 22+), livré en **image Docker**. Rien à installer sur les postes.
-* **Stockage et recherche :** derrière une interface de stockage.
-  * Par défaut : **SQLite + FTS5, un fichier par vault** (SQLite intégré à Node, sans compilation native) ; couche vectorielle optionnelle (sqlite-vec).
-  * Grand compte : **adaptateur PostgreSQL + pgvector**.
-* **Interface agent :** serveur **MCP** natif (transport HTTP, OAuth), compatible Claude Desktop, IDE, LM Studio et autres.
-* **Performance :** requêtes SQLite exécutées en worker threads ; plusieurs instances derrière un répartiteur de charge ; redémarrage automatique, haute disponibilité selon l'usage.
-* **Deux processus, une base de code (T2) :** serveur MCP (lecture seule, sans état, N instances) et indexeur (seul à écrire, une instance).
-* **Livraison (T3) :** une image Docker multi-architecture, deux modes : Docker Compose (petites structures, profil `rag` optionnel) et chart Helm (Kubernetes, OpenShift). Images signées avec SBOM, exécution sans root, installation hors ligne possible. Versions semver, une version à support long par an.
-* **Transport MCP (T10) :** HTTP « streamable » sans session, SDK officiel TypeScript ; SSE non supporté ; stdio pour le développement uniquement. Garde-fous : limite de requêtes par utilisateur, taille maximale de réponse, délai maximum par requête.
-* **Partage des index (T9) :** l'indexeur publie des fichiers d'index immuables par vault dans un stockage objet compatible S3, avec un manifeste (version et empreinte). Chaque serveur télécharge, vérifie l'empreinte et bascule. Pas de disque réseau partagé. En Docker Compose mono-machine, un dossier local suffit.
-* **Recherche (T5 à T8) :** racinisation française ; fusion par rang (RRF) entre texte et vecteurs, léger avantage au vault ciblé, une règle obligatoire pertinente n'est jamais écartée ; reclassement optionnel (bge-reranker-v2-m3) sur GPU. Découpage selon les titres, ~800 tokens (max ~1 500), ~10 % de chevauchement, jamais de coupe dans un bloc de code ou un tableau ; 5 extraits par recherche par défaut.
-* **Synchronisation git (T14) :** copie locale en lecture seule ; webhook signé servant de simple réveil ; seuls les fichiers modifiés sont retraités ; version d'un extrait = identifiant de commit ; historique réécrit = réindexation complète.
-* **Conversion (T15) :** mammoth (Word) et pdf.js (PDF) inclus ; Docling en service optionnel ; conversion de préférence au dépôt, dans un conteneur sans réseau avec limites de taille et de durée.
-
-### 3.2 Outils MCP exposés (lecture seule)
-
-| Outil | Rôle |
-|---|---|
-| `list_vaults` | vaults accessibles à l'utilisateur, avec leur chaîne d'héritage effective |
-| `get_vault_context` | fiche `_CONTEXT.md` + en-tête calculé |
-| `search` | recherche dans un vault et ses parents accessibles, extraits étiquetés |
-| `read_document` | lecture d'un document (chemin contrôlé, pas de sortie du vault) |
-| `list_documents` | liste des documents d'un vault |
-
-### 3.3 API REST
-
-* **V1 :** endpoints techniques uniquement : santé, métriques, webhook de réindexation, commande admin de réindexation (réservée aux admins).
-* **V2 :** API REST de recherche en lecture seule, **miroir exact des outils MCP**, documentée en OpenAPI, pour les plateformes IA internes et chatbots qui ne parlent pas MCP.
-* **Règle d'architecture :** MCP et REST sont deux façades minces sur le même moteur. Authentification, droits, niveaux et audit sont appliqués dans le moteur, jamais dans la façade.
-
-### 3.4 Le Pattern d'Override (extension sans réécriture)
-
-Le moteur se personnalise par **plugins composables** (modèle middleware), et non par héritage de classe : plusieurs plugins écrits par des équipes différentes peuvent cohabiter, et une mise à jour du cœur ne casse pas un plugin conforme. Chaque plugin implémente uniquement les hooks qui l'intéressent ; il appelle `next()` pour obtenir le comportement standard (équivalent de `super`). L'ordre des plugins est fixé dans la configuration ; `apiVersion` est vérifiée au démarrage.
-
-Modes de combinaison : en chaîne avec `next()` (accès, rôles, héritage, métadonnées, découpage, classement, formatage) ; premier plugin qui prend en charge (`loadDocuments`, `convertDocument`, `embed`) ; tous (`detectPersonalData` — le plus strict l'emporte —, `onAuditEvent`, `onAlert`).
-
-**Hooks publics (liste figée et versionnée) :**
-
-| Domaine | Hook | Usage |
+| Id | Exigence | Mesure |
 |---|---|---|
-| Identité et accès | `resolveUserRoles(user)` | enrichir les rôles depuis l'annuaire (LDAP, Keycloak) |
-| | `authenticateToken(token)` | valider un jeton OIDC ou personnel |
-| | `resolveVaultAccess(userRoles, vaultId)` | règle d'accès spécifique |
-| | `isClientAllowed(client, level)` | clients IA autorisés par niveau |
-| Contenu | `computeInheritance(vaultId)` | chaîne de résolution des vaults hérités |
-| | `loadDocuments(vault)` | connecteurs maison |
-| | `convertDocument(file)` | conversion PDF, Word, autres formats |
-| | `extractMetadata(doc)` | titre, catégorie `mandatory` / `default` |
-| | `detectPersonalData(doc)` | détection de données personnelles |
-| | `chunkDocument(doc)` | découpage en extraits |
-| Recherche et rendu | `embed(texts)` | calcul des embeddings |
-| | `rankResults(textHits, vectorHits)` | classement et fusion des résultats |
-| | `formatContextChunk(chunk)` | formatage d'un extrait injecté dans le contexte du LLM |
-| | `formatVaultContext(vault)` | en-tête de la fiche contexte |
-| Exploitation | `onAuditEvent(event)` | export vers le SIEM |
-| | `onAlert(alert)` | alertes RSSI / administrateurs |
-
-**Invariants non surchargeables**, vérifiés par le cœur après les hooks :
-
-1. Lecture seule : aucune écriture possible.
-2. Un vault archivé reste inaccessible.
-3. Le niveau de confidentialité et la liste des clients IA autorisés sont appliqués.
-4. Les chemins de fichiers sont contrôlés (pas de sortie d'un vault).
-5. L'audit est toujours émis.
-
-Une extension peut élargir les droits par rôle, mais chaque accès qu'elle accorde alors que la règle par défaut l'aurait refusé est tracé à part dans l'audit.
-
-### 3.5 Sécurité technique
-
-* **Jetons (T11) :** le serveur est un serveur de ressources OAuth ; il vérifie la signature, l'émetteur et l'audience de chaque jeton. Les groupes sont lus dans le jeton (préfixe `vault-`, identifiant stable), avec repli sur l'annuaire et cache de 5 minutes. Vaults Critique : introspection du jeton à chaque requête.
-* **Clients IA (T13) :** le nom annoncé par le client n'est jamais une preuve. Clients préenregistrés dans l'annuaire, enregistrement dynamique interdit. Élevé : accès conditionnel (postes gérés) et clients déployés par la DSI. Critique : seul le LLM interne, avec certificat client (mTLS), joignable uniquement depuis son réseau. **Seul le niveau Critique garantit techniquement le destinataire.**
-* **Injection de consignes (T12) :** les extraits sont placés dans des balises infalsifiables ; tout texte imitant ces balises est neutralisé ; les instructions de connexion rappellent que les extraits sont de la documentation, pas des ordres. Chaque réponse fournit un texte balisé et un JSON équivalent. Les erreurs sont neutres.
-* **Données personnelles et secrets (T16) :** règles intégrées avec clés de contrôle. Bloquant dès une occurrence : NIR, IBAN, carte bancaire, secrets (mots de passe, clés d'API, clés privées). Bloquant au-delà d'un seuil : emails, téléphones. Presidio en option pour les noms. Le même détecteur tourne à la demande de fusion, au dépôt d'un Word ou PDF et dans l'indexeur. Exceptions déclarées dans le fichier et validées par le RSSI.
-* **Audit (T20) :** chaque événement est écrit dans un tampon local (ajout seul) avant l'envoi de la réponse, puis transmis au SIEM (syslog TLS, HTTP, sortie standard ou `onAuditEvent`). Chaîne d'empreintes entre événements. Tampon impossible à écrire : accès refusé en Élevé et Critique, maintenu avec alerte en Interne.
-* **Stockage :** écriture réservée à l'indexeur, lecture aux serveurs ; disques chiffrés obligatoires pour Élevé et Critique.
-
-### 3.6 Observabilité et tests
-
-* **Observabilité (T19) :** OpenTelemetry (métriques, traces) et logs JSON, sans aucun contenu. Trois flux séparés : logs techniques, métriques et traces, audit. Alertes fournies : p95 > 200 ms, retard d'index > 15 min, pic de refus, service optionnel en panne. Un serveur n'est pas prêt tant que ses index ne sont pas chargés.
-* **Tests (T21) :** chaque règle RG-01 à RG-22 a au moins un test portant son numéro. À chaque modification : matrice d'étanchéité (utilisateurs × vaults × outils) et attaques, test « aucune fuite », tests de contrat des extensions, résilience. La nuit : qualité de recherche (bon document dans les 5 premiers) et performance (100 req/s, p95 < 200 ms). Test d'intrusion tiers avant le premier grand client, puis chaque année.
-
-### 3.7 Licence et modèle économique (T4)
-
-Open core : le cœur est sous licence Apache 2.0 et contient toute la sécurité (SSO, droits, niveaux, audit). Offre payante : support, version à support long, fonctions grands comptes (adaptateur PostgreSQL, connecteurs, interface d'administration). Aucune dépendance GPL ou AGPL.
+| ENF-01 | Étanchéité | Aucun accès sans appartenance au groupe ; matrice utilisateurs × vaults × outils verte à chaque modification |
+| ENF-02 | Imperméabilité | Aucune écriture exposée ; aucune conversation persistée ; chaîne témoin absente des logs, traces, audit |
+| ENF-03 | Confidentialité | Vaults Élevé et Critique jamais envoyés à une API d'embeddings externe ni à un client non autorisé |
+| ENF-04 | Traçabilité | 100 % des accès accordés et refusés tracés ; conservation 6 mois à 1 an |
+| ENF-05 | Révocation | Retrait de groupe ≤ 15 min ; désactivation de compte à la requête suivante |
+| ENF-06 | Performance | Récupération du contexte p95 ≤ 200 ms à 100 requêtes/s, à la volumétrie du §1.3 |
+| ENF-07 | Fraîcheur | Modification fusionnée servie en < 5 min (p95) ; suppression propagée en priorité |
+| ENF-08 | Disponibilité | Serveurs multi-instances sans état ; perte d'un serveur sans interruption |
+| ENF-09 | Maintenabilité | Les mises à jour du cœur passent la suite de tests de contrat des extensions |
+| ENF-10 | Qualité de recherche | Bon document dans les 5 premiers résultats sur le jeu de questions de chaque vault pilote |
 
 ---
 
-## 4. Guide d'Utilisation et d'Extension (Pour les Entreprises)
+## 11. Recette et tests
 
-### 4.1 Installation Plug & Play
+| Famille | Contenu | Fréquence |
+|---|---|---|
+| Règles de gestion | Au moins un test par règle RG-01 à RG-22 ; matrice règle → test → résultat publiée | Chaque modification |
+| Étanchéité | Matrice générée depuis la config + attaques (chemins, audience, faux groupes, client non autorisé, fausses balises) | Chaque modification |
+| Aucune fuite | Chaîne témoin absente des logs, traces, audit et index | Chaque modification |
+| Contrat des extensions | Suite de tests de contrat | Chaque modification + CI de l'entreprise |
+| Résilience | SIEM en panne, disque plein, embeddings coupés, publication interrompue | Chaque modification |
+| Qualité de recherche | Jeu de questions par vault pilote | Chaque nuit |
+| Performance | Données synthétiques à l'échelle cible, 100 req/s | Chaque nuit et avant chaque version |
+| Sécurité externe | Analyse du code et des dépendances ; test d'intrusion tiers | En continu ; avant le premier grand client puis chaque année |
 
-1. Récupérer l'image Docker (ou cloner le dépôt et construire l'image).
-2. Renseigner les variables d'environnement : chemin de `vaults.config.json`, emplacement des dépôts de vaults, port, paramètres OIDC (émetteur, client), destination du SIEM.
-3. Démarrer :
-
-```sh
-docker compose up -d
-# avec le RAG de référence (TEI + bge-m3) :
-docker compose --profile rag up -d
-```
-
-En développement de l'outil uniquement (vaults fictifs, mode stdio) :
-
-```sh
-npm install && npm run build
-npm start
-```
-
-### 4.2 Comment surcharger une fonction (Pattern Override)
-
-L'entreprise écrit un plugin à partir du modèle de projet fourni (structure, exemple, tests, CI), le publie comme paquet npm sur son registre privé, puis l'intègre dans une image dérivée signée, construite par sa CI (tests de contrat lancés à la construction). Le chargement depuis un dossier est réservé au développement. Exemple : exiger, en plus de l'appartenance au groupe, une habilitation projet en cours de validité dans le SI RH.
-
-```ts
-import { definePlugin } from '@contextvault/sdk';
-import { habilitationValide } from './si-rh';
-
-export default definePlugin({
-  name: 'habilitation-rh',
-  apiVersion: 1,
-  hooks: {
-    // Restreint l'accès : règle standard ET habilitation projet valide.
-    async resolveVaultAccess(ctx, next) {
-      if (!(await next())) return false;
-      return habilitationValide(ctx.user, ctx.vault);
-    },
-  },
-});
-```
-
-> L'exemple de la V4, qui donnait accès à tous les vaults au rôle `security-officer` par héritage de classe, est retiré : il recréait un super-admin contraire au cloisonnement (§2.6), et l'héritage empêchait de combiner plusieurs extensions. Un plugin s'exécute avec les droits du serveur : les plugins de sécurité sont relus et validés par le RSSI.
-
-### 4.3 Mises à jour et compatibilité des extensions
-
-* La liste des hooks est une **API publique versionnée (semver)**.
-* Un hook déprécié reste disponible pendant **une version majeure entière**.
-* Une **suite de tests de contrat** est livrée ; l'entreprise la lance sur ses extensions avant chaque mise à jour.
+À écrire en premier : la matrice d'étanchéité et le test « aucune fuite ».
 
 ---
 
-## 5. Critères de Validation et Sécurité
+## 12. Périmètre et plan de livraison
 
-* **Étanchéité :** aucun utilisateur ni LLM ne peut accéder à un vault sans appartenir à son groupe ; les rôles ne proviennent jamais du client IA ; une erreur de configuration d'héritage ne peut pas ouvrir un accès (mode strict) ; aucune extension ne peut contourner les invariants du §3.4.
-* **Imperméabilité conversationnelle :** aucune écriture exposée ; aucune conversation persistée ; l'audit ne contient pas le texte des requêtes.
-* **Confidentialité :** un vault n'est servi qu'aux clients IA autorisés pour son niveau ; les vaults Élevé et Critique ne sont jamais envoyés à une API d'embeddings externe.
-* **Traçabilité :** chaque accès accordé ou refusé est tracé avec les documents renvoyés ; conservation 6 mois à 1 an.
-* **Révocation :** un retrait de groupe prend effet en 15 minutes au plus ; une désactivation de compte, à la requête suivante.
-* **Performance :** temps de récupération du contexte ≤ 200 ms (p95) sur la volumétrie du §1.3, à 100 requêtes/s.
-* **Fraîcheur :** une modification fusionnée est servie en quelques minutes ; une suppression est propagée en priorité.
-* **Maintenabilité :** les mises à jour du cœur passent la suite de tests de contrat sans casser les extensions conformes.
-
----
-
-## 6. Périmètre des versions
+### 12.1 Périmètre par version
 
 | | V1 | V2 |
 |---|---|---|
 | Interface | MCP (HTTP + OAuth), endpoints techniques | API REST de recherche (miroir MCP) |
 | Sources | Markdown, texte, PDF, Word | Confluence, schémas SQL, Excel, PowerPoint |
-| Recherche | FTS5 ; RAG optionnel par vault | — |
-| Stockage | SQLite par vault | adaptateur PostgreSQL + pgvector |
-| Sécurité | SSO, groupes, niveaux, audit, détection données personnelles | — |
+| Recherche | Plein texte ; RAG optionnel par vault | — |
+| Stockage | SQLite par vault | Adaptateur PostgreSQL + pgvector |
+| Sécurité | SSO, groupes, niveaux, audit, détection des données personnelles | — |
 
----
+### 12.2 Lots
 
-## 7. Plan de livraison
-
-Le détail (62 stories, 182 tâches de 1 à 3 points, export Jira) est dans le backlog : `backlog/backlog.html` et `backlog/backlog-jira.csv`. Sprints de deux semaines d'environ 20 points ; estimations à recalibrer avec l'équipe.
+Sprints de deux semaines d'environ 20 points. Détail dans le [backlog](backlog/) : 62 stories, 182 tâches de 1 à 3 points.
 
 | Lot | Objectif | Sprints | Points |
 |---|---|---|---|
 | L0 Fondations | Squelette de bout en bout : un vault, une recherche, un utilisateur SSO | 1 à 3 | 49 |
-| L1 MVP pilote | Pilote sur 2-3 projets réels Interne et Élevé : droits, héritage, indexation git, audit, détection des données personnelles | 4 à 8 | 88 |
-| L2 V1 complète | Déploiement groupe : niveau Critique, RAG optionnel, plugins, Helm, observabilité, performance, test d'intrusion | 9 à 13 | 94 |
-| V2 | API REST, importateurs Confluence et SQL, PostgreSQL | 14 à 15 | 26 |
+| L1 MVP pilote | 2 ou 3 projets réels Interne et Élevé : droits, héritage, indexation git, audit, détection des données personnelles | 4 à 8 | 88 |
+| L2 V1 complète | Déploiement groupe : niveau Critique, RAG, plugins, Helm, observabilité, performance, test d'intrusion | 9 à 13 | 94 |
+| V2 | API REST, importateurs Confluence et SQL, PostgreSQL | 14 et 15 | 26 |
 
-Premiers tests à écrire (T21) : matrice d'étanchéité et test « aucune fuite », dès le lot L1.
+```mermaid
+gantt
+    title Plan de livraison (sprints de 2 semaines)
+    dateFormat YYYY-MM-DD
+    axisFormat %b %Y
+    section Lots
+    L0 Fondations      :l0, 2027-01-04, 6w
+    L1 MVP pilote      :l1, after l0, 10w
+    L2 V1 complète     :l2, after l1, 10w
+    V2                 :v2, after l2, 4w
+    section Jalons
+    Pilote en service  :milestone, after l1, 0d
+    V1 groupe          :milestone, after l2, 0d
+```
 
+La date de départ du planning est indicative.
+
+---
+
+## 13. Paramètres réglables
+
+Ces valeurs sont des paramètres de configuration, avec une valeur par défaut.
+
+| Paramètre | Défaut | Qui la fixe |
+|---|---|---|
+| Conservation d'un vault archivé | 5 ans | Juridique, selon les contrats |
+| Suppression d'un vault de prospect perdu | 6 mois | Juridique, selon les accords de confidentialité |
+| Clients IA autorisés par niveau | Interne : tous ; Élevé et Critique : aucun tant que la liste est vide | RSSI et achats |
+| Fréquence de revue des accès | Trimestrielle | RSSI |
+| Conservation du journal d'audit | 1 an (entre 6 mois et 1 an) | RSSI et DPO |
+| Seuils de détection (emails, téléphones) | Réglables par vault | RSSI et DPO |
+| Taille et nombre d'extraits | ~800 tokens, 5 extraits | Équipe d'exploitation |
+
+---
+
+## 14. Annexe : traçabilité des décisions
+
+| Décision | Objet | Sections |
+|---|---|---|
+| Q1 à Q4 | Identité et rôles, équipe habilitée, accès aux parents, source de vérité | §4.1, §4.5, §9 |
+| Q5 | Niveaux de confidentialité | §4.6 |
+| Q6 à Q8 | Audit, identifiants neutres, données personnelles | §4.7, §4.9, §4.10 |
+| Q9 | Cycle de vie | §4.11 |
+| Q10 à Q12 | Déploiement central, version de Node, volumétrie | §1.3, §6.1 |
+| Q13 à Q14 | RAG et embeddings, mise à jour de l'index | §7.1, §7.2 |
+| Q15 à Q16 | Fiche contexte, priorité socle / client | §4.2, §4.3 |
+| Q17 à Q18 | Connecteurs, API REST | §4.8, §7.3 |
+| Q19 | Hooks surchargeables | §8 |
+| Q20 | Circuit d'écriture | §4.8 |
+| T1 à T4 | Langage, processus, livraison, licence | §6.1, §7.5, §7.6 |
+| T5 à T9 | Recherche, vecteurs, classement, découpage, partage des index | §6.1, §7.1 |
+| T10 à T13 | Transport MCP, identité, format des réponses, clients IA | §7.3, §7.4 |
+| T14 à T16 | Synchronisation git, conversion, détection | §6.2, §7.2 |
+| T17 à T18 | Plugins | §8 |
+| T19 à T21 | Observabilité, audit, tests | §7.4, §7.5, §11 |
+
+Le détail et la justification de chaque décision figurent dans [decisions-fonctionnelles.md](decisions-fonctionnelles.md) et [decisions-techniques.md](decisions-techniques.md).
