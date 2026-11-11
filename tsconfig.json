@@ -1,5 +1,10 @@
 {
   "//": "Point d'entrée de `tsc -b` : chaque paquet de packages/* y est ajouté en référence.",
   "files": [],
-  "references": [{ "path": "./tsconfig.tools.json" }]
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/server" },
+    { "path": "./packages/indexer" },
+    { "path": "./tsconfig.tools.json" }
+  ]
 }

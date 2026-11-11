@@ -1,0 +1,26 @@
+{
+  "name": "@contextvault/server",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Serveur MCP ContextVault : sans état, en lecture seule sur les index",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "contextvault-server": "./dist/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@contextvault/core": "0.0.0"
+  }
+}
