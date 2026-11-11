@@ -1,0 +1,379 @@
+Issue Id,Parent Id,Issue Type,Summary,Epic,Priority,Story Points,Fix Version,Sprint,Description
+E1,,Epic,Socle et livraison,,,,,,"Référence : §3.1, T1-T4"
+E2,,Epic,Identité et accès,,,,,,"Référence : §2.6, T10-T13"
+E3,,Epic,Configuration et vaults,,,,,,"Référence : §2.7-2.10, §2.14-2.15"
+E4,,Epic,Indexation,,,,,,"Référence : §2.2, §2.4, T8, T9, T14, T15"
+E5,,Epic,Recherche et outils MCP,,,,,,"Référence : §2.5, §2.11, §3.2, T5, T12"
+E6,,Epic,RAG optionnel,,,,,,"Référence : §2.3, T6, T7"
+E7,,Epic,Conformité : RGPD et audit,,,,,,"Référence : §2.12-2.13, T16, T20"
+E8,,Epic,Plugins et extensions,,,,,,"Référence : §3.4, §4, T17, T18"
+E9,,Epic,Exploitation,,,,,,"Référence : §2.1, §5, T19, T21"
+E10,,Epic,Ouverture V2,,,,,,"Référence : §2.2, §3.3, §6"
+BC-01,E1,Story,Monorepo TypeScript et CI,Socle et livraison,Highest,5,L0 Fondations,,"En tant que développeur, je veux un monorepo TypeScript (Node LTS 22) avec lint, tests et build en CI, afin de livrer sur une base saine.
+
+Critères d'acceptation : Build et tests passent en CI à chaque demande de fusion ; aucune dépendance GPL/AGPL (contrôle de licences bloquant)."
+BC-01.1,BC-01,Sub-task,"Initialiser le monorepo (workspaces npm, TS strict, ESLint, Prettier)",Socle et livraison,Highest,1,L0 Fondations,Sprint 1,Fini quand : `npm run build` et `npm run lint` passent à vide.
+BC-01.2,BC-01,Sub-task,"Pipeline CI : build, lint, tests unitaires sur chaque demande de fusion",Socle et livraison,Highest,2,L0 Fondations,Sprint 1,Fini quand : Une demande de fusion en échec est bloquée.
+BC-01.3,BC-01,Sub-task,Contrôle de licences bloquant (GPL/AGPL interdites),Socle et livraison,Highest,1,L0 Fondations,Sprint 1,Fini quand : Ajouter une dépendance GPL fait échouer la CI.
+BC-01.4,BC-01,Sub-task,Gabarit de demande de fusion et CODEOWNERS du dépôt produit,Socle et livraison,Highest,1,L0 Fondations,Sprint 1,Fini quand : Revue obligatoire configurée sur la branche principale.
+BC-02,E1,Story,Deux processus : serveur et indexeur,Socle et livraison,Highest,6,L0 Fondations,,"En tant qu'architecte, je veux deux binaires séparés (serveur MCP sans état, indexeur unique), afin que seul l'indexeur écrive les index.
+
+Critères d'acceptation : Le serveur démarre sans droit d'écriture sur le stockage des index ; l'indexeur refuse de démarrer en deux exemplaires."
+BC-02.1,BC-02,Sub-task,"Paquet core partagé (modèle de vault, config, stockage)",Socle et livraison,Highest,2,L0 Fondations,Sprint 1,Fini quand : Importé par le serveur et l'indexeur sans dépendance circulaire.
+BC-02.2,BC-02,Sub-task,Binaire serveur MCP sans accès en écriture au stockage,Socle et livraison,Highest,2,L0 Fondations,Sprint 1,Fini quand : Une tentative d'écriture lève une erreur ; test dédié.
+BC-02.3,BC-02,Sub-task,Binaire indexeur avec verrou d'instance unique,Socle et livraison,Highest,2,L0 Fondations,Sprint 1,Fini quand : Un second indexeur refuse de démarrer et le journalise.
+BC-03,E1,Story,Image Docker et docker-compose de dev,Socle et livraison,Highest,6,L0 Fondations,,"En tant que développeur, je veux lancer l'ensemble avec docker-compose et des vaults fictifs, afin de développer sans infrastructure.
+
+Critères d'acceptation : `docker compose up` sert deux vaults fictifs ; mode stdio disponible pour le dev uniquement."
+BC-03.1,BC-03,Sub-task,"Dockerfile multi-étapes, image non root",Socle et livraison,Highest,2,L0 Fondations,Sprint 1,"Fini quand : Image < 300 Mo, utilisateur non root."
+BC-03.2,BC-03,Sub-task,docker-compose de dev avec Keycloak et deux vaults fictifs,Socle et livraison,Highest,2,L0 Fondations,Sprint 1,Fini quand : `docker compose up` donne un serveur interrogeable en local.
+BC-03.3,BC-03,Sub-task,Mode stdio réservé au dev,Socle et livraison,Highest,1,L0 Fondations,Sprint 1,Fini quand : Refusé si l'environnement n'est pas `development`.
+BC-03.4,BC-03,Sub-task,Installation hors ligne depuis un registre interne,Socle et livraison,Highest,1,L0 Fondations,Sprint 1,Fini quand : Procédure testée sans accès Internet.
+BC-04,E1,Story,Chart Helm compatible OpenShift,Socle et livraison,Highest,5,L2 V1 complète,,"En tant qu'exploitant, je veux un chart Helm qui tourne sans root, afin de déployer sur Kubernetes ou OpenShift.
+
+Critères d'acceptation : Installation réussie sur OpenShift avec SCC restricted ; serveur en N réplicas, indexeur en 1."
+BC-04.1,BC-04,Sub-task,Chart Helm : serveur (Deployment N réplicas) et indexeur (1 réplica),Socle et livraison,Highest,2,L2 V1 complète,Sprint 9,Fini quand : `helm install` sur un cluster de test réussit.
+BC-04.2,BC-04,Sub-task,Compatibilité OpenShift SCC restricted,Socle et livraison,Highest,2,L2 V1 complète,Sprint 9,Fini quand : Pods démarrés sans UID fixe ni privilège.
+BC-04.3,BC-04,Sub-task,"Values documentées : SSO, stockage S3, SIEM, ressources",Socle et livraison,Highest,1,L2 V1 complète,Sprint 9,Fini quand : Chaque valeur a une description et un défaut sûr.
+BC-05,E1,Story,Images signées et SBOM,Socle et livraison,Highest,3,L2 V1 complète,,"En tant que RSSI, je veux des images signées accompagnées d'un SBOM, afin de vérifier ce qui tourne chez nous.
+
+Critères d'acceptation : Signature vérifiable (cosign) ; SBOM publié à chaque version ; scan de vulnérabilités en CI."
+BC-05.1,BC-05,Sub-task,Signature des images avec cosign en CI,Socle et livraison,Highest,1,L2 V1 complète,Sprint 9,Fini quand : Signature vérifiable avec la clé publique publiée.
+BC-05.2,BC-05,Sub-task,Génération et publication du SBOM,Socle et livraison,Highest,1,L2 V1 complète,Sprint 9,Fini quand : SBOM CycloneDX attaché à chaque version.
+BC-05.3,BC-05,Sub-task,Scan de vulnérabilités bloquant sur les critiques,Socle et livraison,Highest,1,L2 V1 complète,Sprint 9,Fini quand : Une CVE critique fait échouer la release.
+BC-10,E2,Story,Connexion SSO OIDC,Identité et accès,Highest,6,L0 Fondations,,"En tant qu'utilisateur, je veux me connecter avec mon compte d'entreprise depuis mon client IA, afin de ne pas gérer de mot de passe dédié.
+
+Critères d'acceptation : Flux OAuth du transport MCP HTTP ; JWT vérifié (signature, émetteur, audience, expiration) ; jeton de 15 min."
+BC-10.1,BC-10,Sub-task,Métadonnées OAuth du serveur MCP (protected resource metadata),Identité et accès,Highest,2,L0 Fondations,Sprint 1,Fini quand : Un client MCP découvre l'émetteur OIDC automatiquement.
+BC-10.2,BC-10,Sub-task,"Vérification du JWT : signature JWKS, émetteur, audience, expiration",Identité et accès,Highest,2,L0 Fondations,Sprint 2,Fini quand : Jeton d'une autre audience refusé ; test pour chaque cas.
+BC-10.3,BC-10,Sub-task,Cache des clés JWKS avec rotation,Identité et accès,Highest,1,L0 Fondations,Sprint 2,Fini quand : Rotation des clés sans redémarrage.
+BC-10.4,BC-10,Sub-task,Réponse 401 conforme avec en-tête WWW-Authenticate,Identité et accès,Highest,1,L0 Fondations,Sprint 2,Fini quand : Le client relance le flux OAuth seul.
+BC-11,E2,Story,Rôles calculés côté serveur,Identité et accès,Highest,3,L0 Fondations,,"En tant que RSSI, je veux que les rôles viennent uniquement de l'annuaire, afin qu'aucun client IA ni LLM ne puisse s'attribuer un droit.
+
+Critères d'acceptation : Tout rôle fourni dans la requête est ignoré ; seuls les groupes préfixés `vault-` (identifiant stable) sont pris en compte ; test d'usurpation."
+BC-11.1,BC-11,Sub-task,Extraction des groupes depuis les claims,Identité et accès,Highest,1,L0 Fondations,Sprint 2,Fini quand : Seuls les groupes préfixés `vault-` sont gardés.
+BC-11.2,BC-11,Sub-task,Mapping par identifiant stable du groupe (pas le nom affiché),Identité et accès,Highest,1,L0 Fondations,Sprint 2,Fini quand : Renommer un groupe ne change pas les droits.
+BC-11.3,BC-11,Sub-task,Ignorer tout rôle fourni par la requête ou le LLM,Identité et accès,Highest,1,L0 Fondations,Sprint 2,Fini quand : Test d'usurpation : rôle injecté sans effet.
+BC-12,E2,Story,Retrait d'accès en 15 minutes,Identité et accès,Highest,4,L1 MVP pilote,,"En tant que chef de projet, je veux qu'un membre retiré du groupe perde l'accès vite, afin de sécuriser les départs.
+
+Critères d'acceptation : Cache des groupes ≤ 5 min ; retrait effectif ≤ 15 min ; compte désactivé refusé à la requête suivante."
+BC-12.1,BC-12,Sub-task,"Cache des groupes par utilisateur, durée 5 min max",Identité et accès,Highest,2,L1 MVP pilote,Sprint 4,Fini quand : Retrait de groupe pris en compte en ≤ 15 min.
+BC-12.2,BC-12,Sub-task,Refus immédiat d'un compte désactivé,Identité et accès,Highest,1,L1 MVP pilote,Sprint 4,Fini quand : Désactivation dans l'annuaire → refus à la requête suivante.
+BC-12.3,BC-12,Sub-task,Introspection du jeton à chaque requête pour les vaults Critique,Identité et accès,Highest,1,L1 MVP pilote,Sprint 4,Fini quand : Jeton révoqué refusé immédiatement sur un vault Critique.
+BC-13,E2,Story,Clients IA préenregistrés,Identité et accès,Highest,4,L1 MVP pilote,,"En tant que RSSI, je veux que seuls les clients IA enregistrés puissent se connecter, afin de savoir quel outil lit quel vault.
+
+Critères d'acceptation : Client inconnu refusé ; identifiant du client présent dans chaque ligne d'audit."
+BC-13.1,BC-13,Sub-task,Registre des clients IA dans la configuration,Identité et accès,Highest,1,L1 MVP pilote,Sprint 4,Fini quand : Chaque client a un identifiant et un nom.
+BC-13.2,BC-13,Sub-task,Identification du client via le client_id OAuth,Identité et accès,Highest,1,L1 MVP pilote,Sprint 4,Fini quand : Client inconnu refusé et tracé.
+BC-13.3,BC-13,Sub-task,Ajout du client IA dans chaque ligne d'audit,Identité et accès,Highest,1,L1 MVP pilote,Sprint 4,Fini quand : Champ présent et non vide.
+BC-13.4,BC-13,Sub-task,Interdire l'enregistrement dynamique de clients,Identité et accès,Highest,1,L1 MVP pilote,Sprint 4,Fini quand : Demande d'enregistrement dynamique refusée.
+BC-14,E2,Story,Clients IA autorisés par niveau,Identité et accès,Highest,3,L1 MVP pilote,,"En tant que RSSI, je veux restreindre les clients IA selon le niveau du vault, afin qu'un vault Critique ne parte que vers un LLM interne.
+
+Critères d'acceptation : Liste par niveau lue dans la config ; refus tracé ; invariant non surchargeable par plugin."
+BC-14.1,BC-14,Sub-task,Lecture de allowed_clients par niveau,Identité et accès,Highest,1,L1 MVP pilote,Sprint 4,Fini quand : Valeurs validées au démarrage.
+BC-14.2,BC-14,Sub-task,Contrôle client/niveau dans le moteur (invariant),Identité et accès,Highest,2,L1 MVP pilote,Sprint 4,"Fini quand : Un client non autorisé sur un vault Critique est refusé, même via plugin."
+BC-15,E2,Story,Jetons personnels pour LLM locaux,Identité et accès,High,5,L2 V1 complète,,"En tant qu'utilisateur d'un LLM local sans OAuth, je veux un jeton personnel émis depuis un portail SSO, afin d'utiliser le service quand même.
+
+Critères d'acceptation : Jeton à durée limitée, révocable, lié à l'utilisateur ; ses rôles restent calculés côté serveur."
+BC-15.1,BC-15,Sub-task,Portail d'émission de jetons derrière le SSO,Identité et accès,High,2,L2 V1 complète,Sprint 11,"Fini quand : Page simple : créer, lister, révoquer."
+BC-15.2,BC-15,Sub-task,"Stockage des jetons hachés, durée limitée",Identité et accès,High,2,L2 V1 complète,Sprint 11,Fini quand : Jeton expiré ou révoqué refusé.
+BC-15.3,BC-15,Sub-task,Authentification par jeton personnel dans le moteur,Identité et accès,High,1,L2 V1 complète,Sprint 11,Fini quand : Rôles recalculés depuis l'annuaire à chaque usage.
+BC-16,E2,Story,Accès d'urgence (break-glass),Identité et accès,Highest,3,L2 V1 complète,,"En tant qu'administrateur, je veux un accès d'urgence à un vault, afin d'intervenir en incident sans être super-admin.
+
+Critères d'acceptation : Rôle dédié ; chaque usage journalisé et notifié au RSSI ; aucun accès implicite pour les admins."
+BC-16.1,BC-16,Sub-task,Rôle break-glass configuré,Identité et accès,Highest,1,L2 V1 complète,Sprint 9,Fini quand : Aucun autre rôle admin ne donne accès au contenu.
+BC-16.2,BC-16,Sub-task,Journalisation dédiée et notification RSSI à chaque usage,Identité et accès,Highest,2,L2 V1 complète,Sprint 9,Fini quand : Notification reçue en test.
+BC-17,E2,Story,MFA et mTLS pour le niveau Critique,Identité et accès,Highest,5,L2 V1 complète,,"En tant que RSSI, je veux une authentification renforcée sur les vaults Critique, afin de répondre aux exigences défense et santé.
+
+Critères d'acceptation : Claim MFA exigé ; jetons plus courts ; mTLS client obligatoire pour les vaults Critique."
+BC-17.1,BC-17,Sub-task,Exiger le claim MFA (amr/acr) pour le niveau Critique,Identité et accès,Highest,2,L2 V1 complète,Sprint 9,Fini quand : Jeton sans MFA refusé sur un vault Critique.
+BC-17.2,BC-17,Sub-task,Durée de jeton réduite pour Critique,Identité et accès,Highest,1,L2 V1 complète,Sprint 9,Fini quand : Durée lue dans la config.
+BC-17.3,BC-17,Sub-task,mTLS client obligatoire pour les vaults Critique,Identité et accès,Highest,2,L2 V1 complète,Sprint 9,"Fini quand : Sans certificat client valide, refus."
+BC-20,E3,Story,Lecture et validation de la configuration,Configuration et vaults,Highest,3,L0 Fondations,,"En tant qu'IT, je veux que le serveur valide `vaults.config.json` au démarrage, afin qu'une erreur ne soit jamais servie.
+
+Critères d'acceptation : Refus de démarrer si : identifiant en double, parent inconnu, cycle, héritage vers un niveau supérieur, index dans un vault ; message d'erreur précis."
+BC-20.1,BC-20,Sub-task,Schéma JSON de vaults.config.json,Configuration et vaults,Highest,1,L0 Fondations,Sprint 2,Fini quand : Erreur de type signalée avec le chemin du champ.
+BC-20.2,BC-20,Sub-task,"Contrôles : identifiants uniques, parents existants, absence de cycle",Configuration et vaults,Highest,1,L0 Fondations,Sprint 2,Fini quand : Un test par erreur.
+BC-20.3,BC-20,Sub-task,"Contrôles : héritage compatible avec les niveaux, index hors des vaults",Configuration et vaults,Highest,1,L0 Fondations,Sprint 2,Fini quand : Un test par erreur.
+BC-21,E3,Story,Héritage strict,Configuration et vaults,Highest,5,L1 MVP pilote,,"En tant qu'utilisateur, je veux recevoir le contexte de mon vault et de ses parents, afin d'avoir les règles du socle sans les copier.
+
+Critères d'acceptation : Ordre profondeur d'abord sans doublon ; un parent n'est inclus que si j'y ai accès ; message « N source(s) héritée(s) non accessible(s) » sans nom."
+BC-21.1,BC-21,Sub-task,"Calcul de la chaîne d'héritage (profondeur d'abord, sans doublon)",Configuration et vaults,Highest,2,L1 MVP pilote,Sprint 4,Fini quand : Ordre vérifié sur un graphe en losange.
+BC-21.2,BC-21,Sub-task,Filtrage strict des parents non accessibles,Configuration et vaults,Highest,2,L1 MVP pilote,Sprint 4,Fini quand : Parent sans droit exclu de la recherche.
+BC-21.3,BC-21,Sub-task,Message « N source(s) héritée(s) non accessible(s) » sans nom,Configuration et vaults,Highest,1,L1 MVP pilote,Sprint 4,Fini quand : Aucun identifiant de vault dans le message.
+BC-22,E3,Story,Alerte d'incohérence d'héritage,Configuration et vaults,Highest,2,L1 MVP pilote,,"En tant qu'IT, je veux être alerté quand le groupe d'un vault n'a pas accès à l'un de ses parents, afin de corriger la config.
+
+Critères d'acceptation : Liste des incohérences au démarrage et dans l'endpoint de santé."
+BC-22.1,BC-22,Sub-task,Détection des groupes sans accès à un parent,Configuration et vaults,Highest,1,L1 MVP pilote,Sprint 4,Fini quand : Liste produite au démarrage.
+BC-22.2,BC-22,Sub-task,Exposition dans l'endpoint de santé,Configuration et vaults,Highest,1,L1 MVP pilote,Sprint 4,Fini quand : Champ `warnings` dans `/readyz`.
+BC-23,E3,Story,Niveaux de confidentialité,Configuration et vaults,Highest,3,L1 MVP pilote,,"En tant que RSSI, je veux que chaque vault porte un niveau Interne, Élevé ou Critique, afin d'appliquer les règles qui vont avec.
+
+Critères d'acceptation : Vault sans niveau traité comme Élevé ; niveau visible dans l'en-tête des réponses."
+BC-23.1,BC-23,Sub-task,Champ level et défaut Élevé,Configuration et vaults,Highest,1,L1 MVP pilote,Sprint 4,Fini quand : Vault sans niveau traité comme Élevé ; test.
+BC-23.2,BC-23,Sub-task,Niveau affiché dans l'en-tête des réponses,Configuration et vaults,Highest,1,L1 MVP pilote,Sprint 4,Fini quand : Présent dans `search` et `get_vault_context`.
+BC-23.3,BC-23,Sub-task,Règles par niveau centralisées dans le moteur,Configuration et vaults,Highest,1,L1 MVP pilote,Sprint 5,Fini quand : Un seul module décide ; testé par niveau.
+BC-24,E3,Story,Identifiants neutres des vaults client,Configuration et vaults,Highest,2,L1 MVP pilote,,"En tant que RSSI, je veux que les vaults client aient un code neutre, afin que les logs et le SIEM ne révèlent pas les noms de clients.
+
+Critères d'acceptation : Code utilisé pour id, dossier, groupe, logs, audit ; `display_name` montré aux seuls membres."
+BC-24.1,BC-24,Sub-task,Générateur d'identifiant neutre pour un nouveau vault client,Configuration et vaults,Highest,1,L1 MVP pilote,Sprint 5,"Fini quand : Code court aléatoire, sans collision."
+BC-24.2,BC-24,Sub-task,Masquage de display_name aux non-membres,Configuration et vaults,Highest,1,L1 MVP pilote,Sprint 5,Fini quand : `list_vaults` ne montre que l'id aux autres.
+BC-25,E3,Story,Fiche contexte `_CONTEXT.md`,Configuration et vaults,Highest,3,L1 MVP pilote,,"En tant qu'utilisateur, je veux que l'IA lise la fiche du projet avant de travailler, afin qu'elle connaisse périmètre, stack et contraintes.
+
+Critères d'acceptation : Fiche limitée à ~1 500 tokens ; toute section de droits y est ignorée et signalée ; exposée aussi en ressource MCP."
+BC-25.1,BC-25,Sub-task,Lecture et limite de taille de _CONTEXT.md,Configuration et vaults,Highest,1,L1 MVP pilote,Sprint 5,Fini quand : Au-delà de ~1 500 tokens : tronqué et signalé.
+BC-25.2,BC-25,Sub-task,Ignorer et signaler une section de droits dans la fiche,Configuration et vaults,Highest,1,L1 MVP pilote,Sprint 5,Fini quand : Log d'avertissement émis.
+BC-25.3,BC-25,Sub-task,Exposition en ressource MCP,Configuration et vaults,Highest,1,L1 MVP pilote,Sprint 5,Fini quand : Ressource listée pour chaque vault accessible.
+BC-26,E3,Story,Cycle de vie des vaults,Configuration et vaults,Highest,5,L2 V1 complète,,"En tant que chef de projet, je veux gérer prospect, actif, maintenance et archivé, afin que l'accès suive la vie du projet.
+
+Critères d'acceptation : Vault archivé inaccessible (invariant) et retiré de l'index, vecteurs compris ; date de revue dépassée signalée aux admins ; réactivation possible."
+BC-26.1,BC-26,Sub-task,Champ status et review_date,Configuration et vaults,Highest,1,L2 V1 complète,Sprint 9,Fini quand : Valeurs validées au démarrage.
+BC-26.2,BC-26,Sub-task,Vault archivé inaccessible (invariant),Configuration et vaults,Highest,1,L2 V1 complète,Sprint 9,"Fini quand : Toute requête refusée, même via plugin."
+BC-26.3,BC-26,Sub-task,"Retrait de l'index à l'archivage, vecteurs compris",Configuration et vaults,Highest,2,L2 V1 complète,Sprint 9,Fini quand : Index supprimé du stockage après archivage.
+BC-26.4,BC-26,Sub-task,Alerte sur date de revue dépassée,Configuration et vaults,Highest,1,L2 V1 complète,Sprint 10,Fini quand : Alerte admin quotidienne.
+BC-27,E3,Story,Rappels de suppression,Configuration et vaults,High,2,L2 V1 complète,,"En tant que DPO, je veux être alerté à l'échéance de suppression (prospect perdu, fin de conservation), afin de respecter les délais.
+
+Critères d'acceptation : Délais lus dans la config (6 mois prospect, 5 ans par défaut) ; suppression tracée dans l'audit."
+BC-27.1,BC-27,Sub-task,Délais de suppression configurables,Configuration et vaults,High,1,L2 V1 complète,Sprint 11,"Fini quand : 6 mois prospect, 5 ans par défaut."
+BC-27.2,BC-27,Sub-task,Alerte DPO à l'échéance et trace d'audit,Configuration et vaults,High,1,L2 V1 complète,Sprint 11,Fini quand : Alerte et ligne d'audit en test.
+BC-30,E4,Story,Indexation FTS5 d'un vault Markdown,Indexation,Highest,7,L0 Fondations,,"En tant qu'utilisateur, je veux que les documents Markdown d'un vault soient indexés, afin de les retrouver par recherche.
+
+Critères d'acceptation : Un fichier SQLite par vault ; découpage ~800 tokens par titres ; reconstruction complète par commande."
+BC-30.1,BC-30,Sub-task,"Interface de stockage (lecture, écriture, bascule)",Indexation,Highest,2,L0 Fondations,Sprint 2,"Fini quand : Implémentée par SQLite, prête pour PostgreSQL."
+BC-30.2,BC-30,Sub-task,"Adaptateur SQLite FTS5, un fichier par vault",Indexation,Highest,2,L0 Fondations,Sprint 2,Fini quand : Recherche avec tokenizer FR/EN sans accents.
+BC-30.3,BC-30,Sub-task,Découpage par titres ~800 tokens avec chevauchement,Indexation,Highest,2,L0 Fondations,Sprint 2,Fini quand : Un extrait ne coupe jamais un bloc de code.
+BC-30.4,BC-30,Sub-task,Commande de reconstruction complète,Indexation,Highest,1,L0 Fondations,Sprint 2,Fini quand : `indexer rebuild <vault>` fonctionne.
+BC-31,E4,Story,Synchronisation git de la branche principale,Indexation,Highest,6,L1 MVP pilote,,"En tant que tech lead, je veux que seule la branche protégée soit indexée, afin que rien de non relu ne soit servi.
+
+Critères d'acceptation : Copie git en lecture seule ; webhook de fusion = simple réveil, l'indexeur relit git ; réconciliation nocturne."
+BC-31.1,BC-31,Sub-task,Clone et fetch en lecture seule de la branche principale,Indexation,Highest,2,L1 MVP pilote,Sprint 5,Fini quand : Seule la branche protégée est lue.
+BC-31.2,BC-31,Sub-task,"Webhook de fusion vérifié par secret, servant de réveil",Indexation,Highest,2,L1 MVP pilote,Sprint 5,Fini quand : Payload ignoré ; l'indexeur relit git.
+BC-31.3,BC-31,Sub-task,Réconciliation nocturne de tous les vaults,Indexation,Highest,1,L1 MVP pilote,Sprint 5,Fini quand : Écart détecté et corrigé en test.
+BC-31.4,BC-31,Sub-task,Réindexation complète si l'historique git est réécrit,Indexation,Highest,1,L1 MVP pilote,Sprint 5,Fini quand : Force-push détecté → vault réindexé entièrement.
+BC-32,E4,Story,Index immuables et bascule atomique,Indexation,Highest,5,L1 MVP pilote,,"En tant qu'exploitant, je veux publier chaque index comme une nouvelle version, afin que les serveurs ne lisent jamais un index à moitié écrit.
+
+Critères d'acceptation : Index publiés dans le stockage S3 avec un manifeste ; les serveurs basculent sur la nouvelle version sans coupure."
+BC-32.1,BC-32,Sub-task,Publication de l'index dans S3 sous une nouvelle version,Indexation,Highest,2,L1 MVP pilote,Sprint 5,Fini quand : Fichier immuable nommé par version.
+BC-32.2,BC-32,Sub-task,Manifeste par vault mis à jour en dernier,Indexation,Highest,1,L1 MVP pilote,Sprint 5,Fini quand : Écriture atomique du manifeste.
+BC-32.3,BC-32,Sub-task,Rechargement par les serveurs sans coupure,Indexation,Highest,2,L1 MVP pilote,Sprint 5,Fini quand : Aucune requête en échec pendant la bascule (test de charge court).
+BC-33,E4,Story,Fraîcheur en quelques minutes,Indexation,Highest,3,L1 MVP pilote,,"En tant qu'utilisateur, je veux qu'une modification fusionnée soit servie rapidement, afin de travailler sur la bonne version.
+
+Critères d'acceptation : Seuls les fichiers modifiés sont réindexés ; délai fusion → service < 5 min en p95."
+BC-33.1,BC-33,Sub-task,Diff git entre deux versions indexées,Indexation,Highest,2,L1 MVP pilote,Sprint 5,Fini quand : Seuls les fichiers modifiés sont retraités.
+BC-33.2,BC-33,Sub-task,Mesure du délai fusion → service,Indexation,Highest,1,L1 MVP pilote,Sprint 5,Fini quand : Métrique exposée ; p95 < 5 min.
+BC-34,E4,Story,Suppressions prioritaires,Indexation,Highest,2,L1 MVP pilote,,"En tant que DPO, je veux qu'un fichier supprimé disparaisse de l'index en priorité, afin de respecter le droit à l'effacement.
+
+Critères d'acceptation : Les suppressions passent devant les ajouts dans la file ; texte et vecteurs purgés."
+BC-34.1,BC-34,Sub-task,File d'indexation avec priorité aux suppressions,Indexation,Highest,1,L1 MVP pilote,Sprint 6,Fini quand : Une suppression passe devant 100 ajouts.
+BC-34.2,BC-34,Sub-task,Purge texte et vecteurs d'un document,Indexation,Highest,1,L1 MVP pilote,Sprint 6,Fini quand : Plus aucun extrait trouvable après purge.
+BC-35,E4,Story,Conversion Word et PDF,Indexation,Highest,7,L1 MVP pilote,,"En tant que chef de projet, je veux déposer des Word et PDF, afin de ne pas tout réécrire en Markdown.
+
+Critères d'acceptation : mammoth pour .docx, pdf.js pour PDF ; échec de conversion signalé sans bloquer le reste."
+BC-35.1,BC-35,Sub-task,Conversion .docx avec mammoth,Indexation,Highest,2,L1 MVP pilote,Sprint 6,Fini quand : Titres et tableaux conservés en Markdown.
+BC-35.2,BC-35,Sub-task,Conversion PDF avec pdf.js,Indexation,Highest,2,L1 MVP pilote,Sprint 6,Fini quand : Texte extrait par page.
+BC-35.3,BC-35,Sub-task,Gestion des échecs de conversion,Indexation,Highest,1,L1 MVP pilote,Sprint 6,"Fini quand : Fichier ignoré, erreur journalisée, le reste indexé."
+BC-35.4,BC-35,Sub-task,"Conversion isolée : conteneur sans réseau, limites de taille et de durée",Indexation,Highest,2,L1 MVP pilote,Sprint 6,Fini quand : Fichier trop gros ou trop long à convertir : rejeté proprement.
+BC-36,E4,Story,Conversion avancée Docling,Indexation,Medium,3,L2 V1 complète,,"En tant qu'entreprise, je veux activer Docling en option, afin de mieux convertir les PDF complexes (tableaux, scans).
+
+Critères d'acceptation : Option de config ; repli sur pdf.js si indisponible."
+BC-36.1,BC-36,Sub-task,Hook convertDocument branché sur Docling,Indexation,Medium,2,L2 V1 complète,Sprint 13,Fini quand : Option de config.
+BC-36.2,BC-36,Sub-task,Repli sur pdf.js si Docling indisponible,Indexation,Medium,1,L2 V1 complète,Sprint 13,Fini quand : Test avec service coupé.
+BC-37,E4,Story,Dossier de dépôt pour non-techniciens,Indexation,High,7,L2 V1 complète,,"En tant que profil non technique, je veux déposer un fichier qui ouvre une demande de fusion, afin de contribuer sans git.
+
+Critères d'acceptation : Le fichier converti arrive en demande de fusion relue ; rien n'est indexé avant la fusion."
+BC-37.1,BC-37,Sub-task,Surveillance d'un dossier de dépôt par vault,Indexation,High,2,L2 V1 complète,Sprint 11,Fini quand : Nouveau fichier détecté en moins d'une minute.
+BC-37.2,BC-37,Sub-task,Conversion et ouverture automatique d'une demande de fusion,Indexation,High,2,L2 V1 complète,Sprint 11,Fini quand : Demande créée au nom du déposant.
+BC-37.3,BC-37,Sub-task,Rien n'est indexé avant la fusion,Indexation,High,1,L2 V1 complète,Sprint 11,Fini quand : Test : fichier déposé non trouvable.
+BC-37.4,BC-37,Sub-task,Contrôle automatique de la demande de fusion par le détecteur,Indexation,High,2,L2 V1 complète,Sprint 11,Fini quand : Une demande contenant un IBAN est marquée en échec.
+BC-38,E4,Story,Commande admin « réindexer le vault X »,Indexation,Highest,2,L1 MVP pilote,,"En tant qu'admin, je veux forcer la réindexation d'un vault, afin de réparer un index sans attendre la nuit.
+
+Critères d'acceptation : Endpoint réservé aux admins ; action tracée dans l'audit."
+BC-38.1,BC-38,Sub-task,Endpoint admin de réindexation,Indexation,Highest,1,L1 MVP pilote,Sprint 6,Fini quand : Réservé au rôle admin.
+BC-38.2,BC-38,Sub-task,Trace d'audit de la réindexation,Indexation,Highest,1,L1 MVP pilote,Sprint 6,Fini quand : Ligne d'audit avec auteur et vault.
+BC-40,E5,Story,Outil MCP `search`,Recherche et outils MCP,Highest,7,L0 Fondations,,"En tant qu'utilisateur, je veux que mon IA cherche dans mon vault et ses parents, afin d'obtenir les extraits utiles.
+
+Critères d'acceptation : Extraits étiquetés avec vault, chemin et version ; limite de taille de réponse ; p95 ≤ 200 ms."
+BC-40.1,BC-40,Sub-task,Déclaration de l'outil search (schéma d'entrée),Recherche et outils MCP,Highest,1,L0 Fondations,Sprint 2,"Fini quand : Paramètres : vault, requête, limite."
+BC-40.2,BC-40,Sub-task,Recherche sur le vault et ses parents accessibles,Recherche et outils MCP,Highest,2,L0 Fondations,Sprint 2,Fini quand : Résultats fusionnés et classés.
+BC-40.3,BC-40,Sub-task,"Format des extraits : vault, chemin, version, étiquette",Recherche et outils MCP,Highest,1,L0 Fondations,Sprint 3,Fini quand : Format testé.
+BC-40.4,BC-40,Sub-task,Limite de taille de réponse,Recherche et outils MCP,Highest,1,L0 Fondations,Sprint 3,Fini quand : Réponse tronquée proprement au-delà de la limite.
+BC-40.5,BC-40,Sub-task,Limite de requêtes par utilisateur et délai maximum par requête,Recherche et outils MCP,Highest,2,L0 Fondations,Sprint 3,Fini quand : Dépassement refusé et signalé à l'audit.
+BC-41,E5,Story,Outils `list_vaults` et `list_documents`,Recherche et outils MCP,Highest,2,L0 Fondations,,"En tant qu'utilisateur, je veux voir mes vaults et leurs documents, afin de savoir ce que l'IA peut consulter.
+
+Critères d'acceptation : Seuls les vaults accessibles sont listés, avec leur héritage effectif."
+BC-41.1,BC-41,Sub-task,Outil list_vaults avec héritage effectif,Recherche et outils MCP,Highest,1,L0 Fondations,Sprint 3,Fini quand : Seuls les vaults accessibles.
+BC-41.2,BC-41,Sub-task,Outil list_documents paginé,Recherche et outils MCP,Highest,1,L0 Fondations,Sprint 3,Fini quand : Pagination testée sur 10 000 documents.
+BC-42,E5,Story,Outil `read_document` sécurisé,Recherche et outils MCP,Highest,3,L1 MVP pilote,,"En tant qu'utilisateur, je veux lire un document entier, afin de donner tout le contexte à l'IA.
+
+Critères d'acceptation : Chemin normalisé ; toute sortie du vault refusée (invariant) ; test de traversée de répertoire."
+BC-42.1,BC-42,Sub-task,Outil read_document,Recherche et outils MCP,Highest,1,L1 MVP pilote,Sprint 6,Fini quand : Renvoie le document et sa version.
+BC-42.2,BC-42,Sub-task,Normalisation et contrôle de chemin (invariant),Recherche et outils MCP,Highest,2,L1 MVP pilote,Sprint 6,"Fini quand : `../`, liens symboliques et chemins absolus refusés ; tests."
+BC-43,E5,Story,Outil `get_vault_context`,Recherche et outils MCP,Highest,2,L1 MVP pilote,,"En tant qu'utilisateur, je veux que l'IA charge la fiche du vault, afin de partir du bon contexte.
+
+Critères d'acceptation : Fiche précédée d'un en-tête calculé (vault, héritage, niveau)."
+BC-43.1,BC-43,Sub-task,Outil get_vault_context et en-tête calculé,Recherche et outils MCP,Highest,1,L1 MVP pilote,Sprint 6,"Fini quand : En-tête : vault, héritage, niveau."
+BC-43.2,BC-43,Sub-task,Instructions de connexion du serveur MCP,Recherche et outils MCP,Highest,1,L1 MVP pilote,Sprint 6,Fini quand : Demandent de lire le contexte et donnent l'ordre de priorité.
+BC-44,E5,Story,Étiquettes de priorité socle / client,Recherche et outils MCP,Highest,3,L1 MVP pilote,,"En tant qu'architecte, je veux que chaque extrait indique s'il est obligatoire, spécifique client ou remplaçable, afin que l'IA applique le bon ordre.
+
+Critères d'acceptation : Catégorie lue dans l'en-tête `priority` ; ordre donné dans les instructions de connexion ; `_DEROGATIONS.md` pris en compte."
+BC-44.1,BC-44,Sub-task,Lecture de l'en-tête priority des documents du socle,Recherche et outils MCP,Highest,1,L1 MVP pilote,Sprint 6,"Fini quand : `mandatory` ou `default`, défaut `default`."
+BC-44.2,BC-44,Sub-task,Étiquetage des extraits selon leur origine,Recherche et outils MCP,Highest,1,L1 MVP pilote,Sprint 6,Fini quand : Trois étiquettes ; test.
+BC-44.3,BC-44,Sub-task,Prise en compte de _DEROGATIONS.md avec expiration,Recherche et outils MCP,Highest,1,L1 MVP pilote,Sprint 6,Fini quand : Dérogation expirée ignorée.
+BC-45,E5,Story,Protection contre l'injection de prompt,Recherche et outils MCP,Highest,3,L1 MVP pilote,,"En tant que RSSI, je veux que le contenu des documents soit isolé dans des balises infalsifiables, afin qu'un document ne puisse pas donner d'ordres à l'IA.
+
+Critères d'acceptation : Balises avec jeton aléatoire par réponse ; une fausse balise dans un document est neutralisée."
+BC-45.1,BC-45,Sub-task,Balises avec jeton aléatoire par réponse,Recherche et outils MCP,Highest,1,L1 MVP pilote,Sprint 6,Fini quand : Jeton différent à chaque réponse.
+BC-45.2,BC-45,Sub-task,Neutralisation des fausses balises dans les documents,Recherche et outils MCP,Highest,2,L1 MVP pilote,Sprint 7,Fini quand : Document piégé testé.
+BC-46,E5,Story,Lecture seule stricte,Recherche et outils MCP,Highest,2,L0 Fondations,,"En tant que RSSI, je veux qu'aucune opération d'écriture n'existe, afin qu'une IA ne puisse pas modifier un vault.
+
+Critères d'acceptation : Aucun outil ni endpoint d'écriture ; aucune conversation conservée ; test d'invariant."
+BC-46.1,BC-46,Sub-task,Aucun outil ni endpoint d'écriture (test d'inventaire),Recherche et outils MCP,Highest,1,L0 Fondations,Sprint 3,Fini quand : Le test liste les outils et échoue si un nouveau écrit.
+BC-46.2,BC-46,Sub-task,Aucune persistance des conversations,Recherche et outils MCP,Highest,1,L0 Fondations,Sprint 3,Fini quand : Revue de code et test : rien sur disque.
+BC-50,E6,Story,Embeddings via API de l'entreprise,RAG optionnel,High,5,L2 V1 complète,,"En tant qu'entreprise, je veux brancher mon service d'embeddings compatible OpenAI, afin d'activer la recherche sémantique.
+
+Critères d'acceptation : RAG désactivé par défaut, activable par vault ; un seul modèle par instance, enregistré dans l'index ; incohérence → retour au texte seul."
+BC-50.1,BC-50,Sub-task,Client d'embeddings compatible OpenAI,RAG optionnel,High,2,L2 V1 complète,Sprint 12,"Fini quand : Lots, reprises, délai max."
+BC-50.2,BC-50,Sub-task,Activation globale puis par vault,RAG optionnel,High,1,L2 V1 complète,Sprint 12,Fini quand : RAG désactivé par défaut.
+BC-50.3,BC-50,Sub-task,"Modèle enregistré dans l'index, coupure en cas d'incohérence",RAG optionnel,High,2,L2 V1 complète,Sprint 12,Fini quand : Retour au texte seul et alerte.
+BC-51,E6,Story,Recherche hybride,RAG optionnel,High,5,L2 V1 complète,,"En tant qu'utilisateur, je veux combiner recherche texte et vectorielle, afin de trouver les documents même avec d'autres mots.
+
+Critères d'acceptation : sqlite-vec ; fusion RRF ; reranker bge-reranker-v2-m3 en option."
+BC-51.1,BC-51,Sub-task,Stockage vectoriel sqlite-vec,RAG optionnel,High,2,L2 V1 complète,Sprint 12,Fini quand : Vecteurs dans le fichier du vault.
+BC-51.2,BC-51,Sub-task,Fusion RRF texte + vecteurs,RAG optionnel,High,2,L2 V1 complète,Sprint 12,Fini quand : Testée sur un jeu de requêtes de référence.
+BC-51.3,BC-51,Sub-task,Reranker optionnel,RAG optionnel,High,1,L2 V1 complète,Sprint 12,Fini quand : Activable par config.
+BC-52,E6,Story,Embeddings internes pour Élevé et Critique,RAG optionnel,Highest,2,L2 V1 complète,,"En tant que RSSI, je veux interdire les API d'embeddings externes pour les vaults Élevé et Critique, afin que leur contenu ne sorte pas.
+
+Critères d'acceptation : Démarrage refusé si un vault Élevé ou Critique a le RAG actif vers un endpoint non interne."
+BC-52.1,BC-52,Sub-task,Contrôle au démarrage des endpoints d'embeddings par niveau,RAG optionnel,Highest,2,L2 V1 complète,Sprint 10,Fini quand : Endpoint externe sur un vault Élevé : refus de démarrer.
+BC-53,E6,Story,Profil docker-compose « rag »,RAG optionnel,Medium,2,L2 V1 complète,,"En tant que petite structure, je veux un service d'embeddings prêt à l'emploi, afin d'activer le RAG sans plateforme IA.
+
+Critères d'acceptation : Profil TEI + bge-m3 livré et documenté."
+BC-53.1,BC-53,Sub-task,Profil docker-compose « rag » TEI + bge-m3,RAG optionnel,Medium,1,L2 V1 complète,Sprint 13,Fini quand : `--profile rag` démarre le service.
+BC-53.2,BC-53,Sub-task,Documentation du profil,RAG optionnel,Medium,1,L2 V1 complète,Sprint 13,Fini quand : Pas à pas testé.
+BC-60,E7,Story,Journal d'audit,Conformité : RGPD et audit,Highest,5,L1 MVP pilote,,"En tant que RSSI, je veux une ligne d'audit par appel, afin de savoir qui a lu quoi.
+
+Critères d'acceptation : Métadonnées seulement (jamais le texte) ; documents renvoyés avec chemin et version ; écrit dans un tampon local avant la réponse."
+BC-60.1,BC-60,Sub-task,Format de la ligne d'audit (schéma JSON),Conformité : RGPD et audit,Highest,1,L1 MVP pilote,Sprint 7,"Fini quand : Champs du §2.13, jamais de texte."
+BC-60.2,BC-60,Sub-task,Liste des documents renvoyés avec chemin et version,Conformité : RGPD et audit,Highest,1,L1 MVP pilote,Sprint 7,Fini quand : Présente pour `search` et `read_document`.
+BC-60.3,BC-60,Sub-task,Écriture dans un tampon local avant la réponse,Conformité : RGPD et audit,Highest,2,L1 MVP pilote,Sprint 7,Fini quand : La réponse part après l'écriture.
+BC-60.4,BC-60,Sub-task,Test : aucun texte de requête dans l'audit,Conformité : RGPD et audit,Highest,1,L1 MVP pilote,Sprint 7,Fini quand : Test automatisé.
+BC-61,E7,Story,Refus si l'audit est impossible,Conformité : RGPD et audit,Highest,3,L1 MVP pilote,,"En tant que RSSI, je veux que les vaults Élevé et Critique ne soient pas servis sans audit, afin de ne jamais perdre une trace.
+
+Critères d'acceptation : Tampon d'audit indisponible → refus en Élevé et Critique ; chaîne d'empreintes vérifiable."
+BC-61.1,BC-61,Sub-task,Chaîne d'empreintes entre lignes d'audit,Conformité : RGPD et audit,Highest,2,L1 MVP pilote,Sprint 7,Fini quand : Ligne modifiée détectée par l'outil de vérification.
+BC-61.2,BC-61,Sub-task,"Refus si le tampon est indisponible (Élevé, Critique)",Conformité : RGPD et audit,Highest,1,L1 MVP pilote,Sprint 7,Fini quand : Disque plein simulé → refus.
+BC-62,E7,Story,Envoi de l'audit vers le SIEM,Conformité : RGPD et audit,Highest,3,L1 MVP pilote,,"En tant que RSSI, je veux recevoir l'audit dans mon SIEM, afin de l'exploiter avec mes outils.
+
+Critères d'acceptation : Envoi en continu via `onAuditEvent` ; reprise après coupure sans perte ; conservation 6 mois à 1 an."
+BC-62.1,BC-62,Sub-task,Expéditeur vers le SIEM via onAuditEvent,Conformité : RGPD et audit,Highest,2,L1 MVP pilote,Sprint 7,Fini quand : Syslog/HTTP selon config.
+BC-62.2,BC-62,Sub-task,Reprise après coupure sans perte,Conformité : RGPD et audit,Highest,1,L1 MVP pilote,Sprint 7,Fini quand : Coupure SIEM simulée : tout arrive après rétablissement.
+BC-63,E7,Story,Détection des données personnelles et des secrets,Conformité : RGPD et audit,Highest,7,L1 MVP pilote,,"En tant que DPO, je veux bloquer l'indexation des fichiers contenant des données personnelles en masse ou des secrets, afin d'éviter les fuites.
+
+Critères d'acceptation : Règles : emails en masse, téléphones, IBAN, NIR, IP, clés et mots de passe ; fichier non indexé au-delà du seuil ; auteur et RSSI alertés."
+BC-63.1,BC-63,Sub-task,"Règles : emails en masse, téléphones, IBAN, NIR, IP",Conformité : RGPD et audit,Highest,2,L1 MVP pilote,Sprint 7,Fini quand : Jeu de tests positifs et négatifs.
+BC-63.2,BC-63,Sub-task,"Détection des secrets (clés, mots de passe, jetons)",Conformité : RGPD et audit,Highest,1,L1 MVP pilote,Sprint 7,Fini quand : Règles type gitleaks.
+BC-63.3,BC-63,Sub-task,Seuil de blocage et non-indexation,Conformité : RGPD et audit,Highest,1,L1 MVP pilote,Sprint 7,Fini quand : Seuil configurable par vault.
+BC-63.4,BC-63,Sub-task,Alerte auteur et RSSI,Conformité : RGPD et audit,Highest,1,L1 MVP pilote,Sprint 7,Fini quand : Alerte reçue en test.
+BC-63.5,BC-63,Sub-task,"Carte bancaire et blocage dès une occurrence (NIR, IBAN, carte)",Conformité : RGPD et audit,Highest,1,L1 MVP pilote,Sprint 7,"Fini quand : Clés de contrôle vérifiées (Luhn, IBAN, NIR)."
+BC-63.6,BC-63,Sub-task,Exceptions déclarées dans le fichier et validées par le RSSI,Conformité : RGPD et audit,Highest,1,L1 MVP pilote,Sprint 7,Fini quand : Domaines d'exemple ignorés ; exception sans validation refusée.
+BC-64,E7,Story,Détection avancée avec Presidio,Conformité : RGPD et audit,Medium,3,L2 V1 complète,,"En tant qu'entreprise, je veux activer Presidio en option, afin d'améliorer la détection des noms et adresses.
+
+Critères d'acceptation : Option de config ; le plus strict des détecteurs l'emporte."
+BC-64.1,BC-64,Sub-task,Branchement Presidio via detectPersonalData,Conformité : RGPD et audit,Medium,2,L2 V1 complète,Sprint 13,Fini quand : Option de config.
+BC-64.2,BC-64,Sub-task,Combinaison : le plus strict l'emporte,Conformité : RGPD et audit,Medium,1,L2 V1 complète,Sprint 13,Fini quand : Test avec deux détecteurs.
+BC-65,E7,Story,Alertes RSSI,Conformité : RGPD et audit,High,3,L2 V1 complète,,"En tant que RSSI, je veux être alerté sur les refus répétés et les volumes anormaux, afin de repérer un abus.
+
+Critères d'acceptation : Seuils configurables ; alerte volume pour le niveau Critique ; envoi via `onAlert`."
+BC-65.1,BC-65,Sub-task,Alerte sur refus répétés,Conformité : RGPD et audit,High,1,L2 V1 complète,Sprint 12,Fini quand : Seuil configurable.
+BC-65.2,BC-65,Sub-task,Alerte volume anormal sur Critique,Conformité : RGPD et audit,High,1,L2 V1 complète,Sprint 12,Fini quand : Seuil configurable.
+BC-65.3,BC-65,Sub-task,Envoi via onAlert,Conformité : RGPD et audit,High,1,L2 V1 complète,Sprint 12,Fini quand : Plugin d'alerte d'exemple (email/webhook).
+BC-70,E8,Story,SDK de plugins `definePlugin`,Plugins et extensions,Highest,5,L2 V1 complète,,"En tant que développeur d'une entreprise, je veux écrire un plugin qui n'implémente que les hooks utiles, afin d'adapter le moteur sans le forker.
+
+Critères d'acceptation : Chaîne avec `next()`, premier qui prend en charge, ou tous ; ordre fixé dans la config ; `apiVersion` vérifiée au démarrage."
+BC-70.1,BC-70,Sub-task,API definePlugin et types du SDK,Plugins et extensions,Highest,2,L2 V1 complète,Sprint 10,Fini quand : Paquet `@contextvault/sdk` publié.
+BC-70.2,BC-70,Sub-task,Exécution en chaîne avec next(),Plugins et extensions,Highest,1,L2 V1 complète,Sprint 10,Fini quand : Ordre défini par la config ; test.
+BC-70.3,BC-70,Sub-task,Modes « premier qui prend en charge » et « tous »,Plugins et extensions,Highest,1,L2 V1 complète,Sprint 10,Fini quand : Tests par mode.
+BC-70.4,BC-70,Sub-task,Vérification de apiVersion au démarrage,Plugins et extensions,Highest,1,L2 V1 complète,Sprint 10,Fini quand : Version incompatible : refus de démarrer.
+BC-71,E8,Story,Invariants non surchargeables,Plugins et extensions,Highest,3,L2 V1 complète,,"En tant que RSSI, je veux qu'aucun plugin ne puisse contourner les invariants, afin que la sécurité ne dépende pas des extensions.
+
+Critères d'acceptation : Les 5 invariants revérifiés après les hooks ; accès élargis par un plugin tracés à part."
+BC-71.1,BC-71,Sub-task,Revérification des 5 invariants après les hooks,Plugins et extensions,Highest,2,L2 V1 complète,Sprint 10,Fini quand : Un plugin malveillant de test ne passe aucun invariant.
+BC-71.2,BC-71,Sub-task,Trace d'audit des accès élargis par un plugin,Plugins et extensions,Highest,1,L2 V1 complète,Sprint 10,Fini quand : Ligne d'audit distincte.
+BC-72,E8,Story,Suite de tests de contrat,Plugins et extensions,Highest,3,L2 V1 complète,,"En tant qu'entreprise, je veux lancer une suite de tests sur mes plugins, afin de savoir si une mise à jour les casse.
+
+Critères d'acceptation : Suite publiée en paquet npm ; dépréciation conservée une version majeure."
+BC-72.1,BC-72,Sub-task,Paquet de tests de contrat,Plugins et extensions,Highest,2,L2 V1 complète,Sprint 10,Fini quand : Lancement en une commande sur un plugin.
+BC-72.2,BC-72,Sub-task,Politique de dépréciation documentée,Plugins et extensions,Highest,1,L2 V1 complète,Sprint 10,Fini quand : Un hook déprécié reste une version majeure.
+BC-73,E8,Story,Image dérivée avec plugins,Plugins et extensions,High,4,L2 V1 complète,,"En tant qu'exploitant, je veux intégrer mes plugins npm dans une image dérivée, afin de déployer une version maison signée.
+
+Critères d'acceptation : Exemple de Dockerfile et documentation ; aucun chargement de code à chaud."
+BC-73.1,BC-73,Sub-task,Dockerfile d'exemple d'image dérivée,Plugins et extensions,High,1,L2 V1 complète,Sprint 12,Fini quand : Construit et démarre avec un plugin d'exemple.
+BC-73.2,BC-73,Sub-task,Documentation du chargement des plugins,Plugins et extensions,High,1,L2 V1 complète,Sprint 12,Fini quand : Aucun chargement à chaud.
+BC-73.3,BC-73,Sub-task,"Modèle de projet de plugin (structure, exemple, tests, CI)",Plugins et extensions,High,2,L2 V1 complète,Sprint 12,Fini quand : Un plugin créé depuis le modèle passe les tests de contrat.
+BC-80,E9,Story,Endpoints santé et métriques,Exploitation,Highest,2,L0 Fondations,,"En tant qu'exploitant, je veux des sondes de santé et des métriques, afin de surveiller le service.
+
+Critères d'acceptation : `/healthz`, `/readyz`, `/metrics` ; aucun contenu de document exposé."
+BC-80.1,BC-80,Sub-task,Endpoints /healthz et /readyz,Exploitation,Highest,1,L0 Fondations,Sprint 3,Fini quand : `readyz` faux tant que les index ne sont pas chargés.
+BC-80.2,BC-80,Sub-task,Endpoint /metrics Prometheus,Exploitation,Highest,1,L0 Fondations,Sprint 3,"Fini quand : Latence, requêtes, refus."
+BC-81,E9,Story,OpenTelemetry sans contenu,Exploitation,High,5,L2 V1 complète,,"En tant qu'exploitant, je veux des traces et métriques OpenTelemetry, afin de diagnostiquer la latence.
+
+Critères d'acceptation : Aucune question ni extrait dans les traces ; test qui le vérifie."
+BC-81.1,BC-81,Sub-task,Traces OpenTelemetry du parcours d'une requête,Exploitation,High,2,L2 V1 complète,Sprint 12,Fini quand : Une trace par appel MCP.
+BC-81.2,BC-81,Sub-task,Test : aucun contenu dans les traces,Exploitation,High,1,L2 V1 complète,Sprint 12,Fini quand : Test automatisé.
+BC-81.3,BC-81,Sub-task,"Alertes fournies : p95 > 200 ms, retard d'index > 15 min, pic de refus, service en panne",Exploitation,High,2,L2 V1 complète,Sprint 13,Fini quand : Règles d'alerte livrées avec le chart.
+BC-82,E9,Story,Test de charge à la volumétrie cible,Exploitation,Highest,7,L2 V1 complète,,"En tant que product owner, je veux valider la performance sur ~100 projets, afin de tenir l'engagement de 200 ms.
+
+Critères d'acceptation : p95 ≤ 200 ms à 100 requêtes/s sur le jeu de volumétrie du §1.3."
+BC-82.1,BC-82,Sub-task,Générateur de jeu de données à la volumétrie §1.3,Exploitation,Highest,2,L2 V1 complète,Sprint 10,"Fini quand : ~100 vaults, documents réalistes."
+BC-82.2,BC-82,Sub-task,Scénario de charge k6 à 100 req/s,Exploitation,Highest,2,L2 V1 complète,Sprint 10,Fini quand : Rapport p95 produit en CI nocturne.
+BC-82.3,BC-82,Sub-task,Optimisations si p95 > 200 ms,Exploitation,Highest,1,L2 V1 complète,Sprint 10,Fini quand : Objectif tenu.
+BC-82.4,BC-82,Sub-task,Jeu de questions de test par vault pilote (bon document dans le top 5),Exploitation,Highest,2,L2 V1 complète,Sprint 11,Fini quand : Mesure de qualité en CI nocturne.
+BC-83,E9,Story,"Une règle, un test",Exploitation,Highest,8,L1 MVP pilote,,"En tant que product owner, je veux que chaque règle RG ait au moins un test automatisé, afin de prouver l'étanchéité.
+
+Critères d'acceptation : Matrice RG → tests générée en CI ; une règle sans test fait échouer la CI."
+BC-83.1,BC-83,Sub-task,Matrice RG → tests générée en CI,Exploitation,Highest,2,L1 MVP pilote,Sprint 8,Fini quand : Tableau publié à chaque build.
+BC-83.2,BC-83,Sub-task,Échec de la CI pour une règle sans test,Exploitation,Highest,1,L1 MVP pilote,Sprint 8,Fini quand : Test de la règle de CI.
+BC-83.3,BC-83,Sub-task,Matrice d'étanchéité générée depuis la config (utilisateurs × vaults × outils),Exploitation,Highest,2,L1 MVP pilote,Sprint 8,Fini quand : Écrite en premier ; tourne à chaque modification.
+BC-83.4,BC-83,Sub-task,"Test « aucune fuite » : chaîne témoin absente des logs, traces, audit",Exploitation,Highest,1,L1 MVP pilote,Sprint 8,Fini quand : Écrit en premier ; tourne à chaque modification.
+BC-83.5,BC-83,Sub-task,"Tests de résilience : SIEM en panne, disque plein, embeddings coupés",Exploitation,Highest,2,L1 MVP pilote,Sprint 8,Fini quand : Comportement conforme au §2.13 et à T20.
+BC-84,E9,Story,Sauvegarde et restauration,Exploitation,High,2,L2 V1 complète,,"En tant qu'exploitant, je veux une procédure de sauvegarde des vaults et de la config, afin de repartir après un sinistre.
+
+Critères d'acceptation : Index non sauvegardés et reconstruits ; restauration testée une fois avant la mise en production."
+BC-84.1,BC-84,Sub-task,Procédure de sauvegarde des vaults et de la config,Exploitation,High,1,L2 V1 complète,Sprint 13,Fini quand : Documentée.
+BC-84.2,BC-84,Sub-task,Test de restauration complète,Exploitation,High,1,L2 V1 complète,Sprint 13,"Fini quand : Restauration réussie, index reconstruits."
+BC-85,E9,Story,Documentation d'installation et d'exploitation,Exploitation,High,3,L2 V1 complète,,"En tant qu'entreprise, je veux un guide d'installation et un runbook, afin de déployer sans l'éditeur.
+
+Critères d'acceptation : Installation, config, SSO, SIEM, RAG, plugins, mises à jour."
+BC-85.1,BC-85,Sub-task,Guide d'installation,Exploitation,High,1,L2 V1 complète,Sprint 13,Fini quand : Installation suivie par une personne extérieure.
+BC-85.2,BC-85,Sub-task,Guide d'exploitation (runbook),Exploitation,High,1,L2 V1 complète,Sprint 13,Fini quand : Incidents courants couverts.
+BC-85.3,BC-85,Sub-task,Guide de mise à jour et de plugins,Exploitation,High,1,L2 V1 complète,Sprint 13,Fini quand : Inclut les tests de contrat.
+BC-90,E10,Story,API REST de recherche,Ouverture V2,High,5,V2 V2,,"En tant que plateforme IA interne, je veux une API REST miroir des outils MCP, afin d'utiliser la banque sans MCP.
+
+Critères d'acceptation : OpenAPI publiée ; mêmes droits, niveaux et audit, appliqués dans le moteur."
+BC-90.1,BC-90,Sub-task,Façade REST mince sur le moteur,Ouverture V2,High,2,V2 V2,Sprint 14,Fini quand : Mêmes contrôles que MCP ; tests partagés.
+BC-90.2,BC-90,Sub-task,Spécification OpenAPI publiée,Ouverture V2,High,1,V2 V2,Sprint 14,Fini quand : Générée depuis le code.
+BC-90.3,BC-90,Sub-task,Authentification REST (OIDC client credentials et utilisateur),Ouverture V2,High,2,V2 V2,Sprint 14,Fini quand : Rôles toujours calculés côté serveur.
+BC-91,E10,Story,Importateur Confluence,Ouverture V2,High,8,V2 V2,,"En tant que chef de projet, je veux importer un espace Confluence dans un vault, afin de réutiliser la doc existante.
+
+Critères d'acceptation : Un espace = un vault ; pages à restrictions propres ignorées ; passage par la relue normale."
+BC-91.1,BC-91,Sub-task,Lecture d'un espace Confluence via API,Ouverture V2,High,2,V2 V2,Sprint 14,Fini quand : Pages et pièces jointes.
+BC-91.2,BC-91,Sub-task,Exclusion des pages à restrictions propres,Ouverture V2,High,1,V2 V2,Sprint 14,Fini quand : Test.
+BC-91.3,BC-91,Sub-task,Conversion en Markdown,Ouverture V2,High,2,V2 V2,Sprint 14,Fini quand : Tableaux et macros courantes.
+BC-91.4,BC-91,Sub-task,Dépôt en demande de fusion relue,Ouverture V2,High,2,V2 V2,Sprint 14,Fini quand : Rien d'indexé avant fusion.
+BC-91.5,BC-91,Sub-task,Mise à jour incrémentale,Ouverture V2,High,1,V2 V2,Sprint 14,Fini quand : Seules les pages modifiées.
+BC-92,E10,Story,Importateur de schémas SQL,Ouverture V2,Medium,5,V2 V2,,"En tant que développeur, je veux importer le schéma d'une base, afin que l'IA connaisse les tables.
+
+Critères d'acceptation : Tables, colonnes, commentaires seulement ; jamais de données."
+BC-92.1,BC-92,Sub-task,"Lecture du schéma (PostgreSQL, Oracle, SQL Server)",Ouverture V2,Medium,3,V2 V2,Sprint 15,"Fini quand : Tables, colonnes, commentaires, jamais de données."
+BC-92.2,BC-92,Sub-task,Rendu Markdown et dépôt en demande de fusion,Ouverture V2,Medium,2,V2 V2,Sprint 15,Fini quand : Un fichier par schéma.
+BC-93,E10,Story,Adaptateur PostgreSQL + pgvector,Ouverture V2,High,8,V2 V2,,"En tant que grand compte, je veux stocker les index dans PostgreSQL, afin d'utiliser ma base managée.
+
+Critères d'acceptation : Un schéma par vault ; même suite de tests que SQLite."
+BC-93.1,BC-93,Sub-task,"Adaptateur PostgreSQL, un schéma par vault",Ouverture V2,High,3,V2 V2,Sprint 14,Fini quand : Implémente l'interface de stockage.
+BC-93.2,BC-93,Sub-task,Recherche plein texte PostgreSQL,Ouverture V2,High,2,V2 V2,Sprint 14,Fini quand : Configuration française.
+BC-93.3,BC-93,Sub-task,pgvector pour le RAG,Ouverture V2,High,2,V2 V2,Sprint 14,Fini quand : Même fusion RRF.
+BC-93.4,BC-93,Sub-task,Passage de la suite de tests de stockage,Ouverture V2,High,1,V2 V2,Sprint 15,Fini quand : Suite commune SQLite/PostgreSQL verte.
+BC-86,E9,Story,Test d'intrusion avant le premier grand client,Exploitation,Highest,4,L2 V1 complète,,"En tant que RSSI, je veux un test d'intrusion par un tiers avant la mise en production chez un grand client, afin de valider l'étanchéité de l'extérieur.
+
+Critères d'acceptation : Rapport sans vulnérabilité critique ouverte ; renouvelé chaque année."
+BC-86.1,BC-86,Sub-task,Cadrage et choix du prestataire,Exploitation,Highest,1,L2 V1 complète,Sprint 11,Fini quand : Périmètre validé par le RSSI.
+BC-86.2,BC-86,Sub-task,Correction des vulnérabilités trouvées,Exploitation,Highest,3,L2 V1 complète,Sprint 11,Fini quand : Aucune critique ni haute ouverte.
