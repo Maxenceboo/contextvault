@@ -1,0 +1,20 @@
+{
+  "name": "@contextvault/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Modèle de vault, configuration et stockage des index, partagés par le serveur et l'indexeur",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@contextvault/indexer",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Indexeur ContextVault : seul processus autorisé à écrire les index, en instance unique",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "contextvault-indexer": "./dist/bin.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@contextvault/core": "0.0.0"
+  }
+}
