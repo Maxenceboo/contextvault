@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verifier:
+    name: Build, lint, tests et licences
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Build et vérification de types
+        run: npm run build
+      - name: Lint
+        run: npm run lint
+      - name: Formatage
+        run: npm run format:check
+      - name: Tests unitaires
+        run: npm test
+      - name: Contrôle de licences (GPL/LGPL/AGPL interdites)
+        run: npm run licenses
