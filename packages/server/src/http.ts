@@ -5,6 +5,8 @@
  *   session ni de flux SSE côté serveur).
  * - `GET /healthz` : le processus répond.
  * - `GET /readyz` : configuration chargée et stockage ouvert.
+ * - `GET /.well-known/oauth-protected-resource[/mcp]` : métadonnées OAuth
+ *   (RFC 9728, BC-10.1), si un émetteur OIDC est configuré.
  *
  * L'authentification OIDC arrive avec BC-10 ; d'ici là le transport HTTP
  * n'est accepté qu'en environnement `development` (voir `assertHttpAllowed`).
@@ -15,6 +17,12 @@ import type { AddressInfo } from 'node:net';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { ContextVaultError, type Environment, type Logger } from '@contextvault/core';
 import { createMcpServer } from './mcp.js';
+import {
+  MCP_PATH,
+  protectedResourceMetadata,
+  protectedResourceMetadataPaths,
+  type OAuthOptions,
+} from './oauth.js';
 import type { RunningServer } from './server.js';
 
 /** Taille maximale d'une requête MCP (garde-fou T10). */
@@ -37,6 +45,8 @@ export function assertHttpAllowed(environment: Environment): void {
 export interface HttpOptions {
   readonly host: string;
   readonly port: number;
+  /** Absent : aucun émetteur annoncé (développement sans SSO). */
+  readonly oauth?: OAuthOptions;
 }
 
 export function readHttpOptions(env: NodeJS.ProcessEnv = process.env): HttpOptions {
@@ -112,6 +122,31 @@ async function handleMcp(
   }
 }
 
+/**
+ * Métadonnées publiques : lisibles depuis n'importe quelle origine, pour les
+ * clients MCP qui tournent dans un navigateur.
+ */
+function serveMetadata(
+  req: IncomingMessage,
+  res: ServerResponse,
+  metadata: ReturnType<typeof protectedResourceMetadata> | undefined,
+): void {
+  res.setHeader('access-control-allow-origin', '*');
+  if (req.method === 'OPTIONS') {
+    res.setHeader('access-control-allow-methods', 'GET, OPTIONS');
+    res.setHeader('access-control-allow-headers', 'mcp-protocol-version');
+    res.writeHead(204).end();
+  } else if (req.method !== 'GET') {
+    res.setHeader('allow', 'GET, OPTIONS');
+    sendJson(res, 405, { error: 'method_not_allowed' });
+  } else if (!metadata) {
+    sendJson(res, 404, { error: 'not_found' });
+  } else {
+    res.setHeader('cache-control', 'public, max-age=3600');
+    sendJson(res, 200, metadata);
+  }
+}
+
 export interface RunningHttpServer {
   readonly server: Server;
   readonly url: string;
@@ -123,9 +158,14 @@ export async function startHttpServer(
   options: HttpOptions,
   logger: Logger,
 ): Promise<RunningHttpServer> {
+  const metadataPaths = new Set(protectedResourceMetadataPaths());
+  const metadata = options.oauth ? protectedResourceMetadata(options.oauth) : undefined;
+
   const server = createServer((req, res) => {
     const path = new URL(req.url ?? '/', 'http://localhost').pathname;
-    if (path === '/mcp') {
+    if (metadataPaths.has(path)) {
+      serveMetadata(req, res, metadata);
+    } else if (path === MCP_PATH) {
       void handleMcp(req, res, context, logger);
     } else if (path === '/healthz' && req.method === 'GET') {
       sendJson(res, 200, { status: 'ok' });
@@ -143,7 +183,13 @@ export async function startHttpServer(
   });
   const address = server.address() as AddressInfo;
   const url = `http://${address.address.includes(':') ? `[${address.address}]` : address.address}:${address.port}`;
-  logger.info('Transport HTTP MCP prêt', { url: `${url}/mcp` });
+  logger.info('Transport HTTP MCP prêt', {
+    url: `${url}${MCP_PATH}`,
+    oidcIssuer: options.oauth?.issuer ?? null,
+  });
+  if (!options.oauth) {
+    logger.warn('Aucun émetteur OIDC configuré : les clients ne peuvent pas découvrir le SSO');
+  }
 
   return {
     server,
