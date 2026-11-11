@@ -33,3 +33,15 @@ jobs:
         run: npm test
       - name: Contrôle de licences (GPL/LGPL/AGPL interdites)
         run: npm run licenses
+
+  image:
+    name: Image Docker (taille, non root, démarrage sans réseau)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construction de l'image
+        run: docker build -t contextvault:ci .
+      - name: Vérification de l'image
+        run: tools/docker-smoke.sh contextvault:ci
+      - name: Validation du docker-compose de développement
+        run: docker compose config --quiet

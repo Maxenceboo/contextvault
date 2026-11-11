@@ -1,13 +1,18 @@
 /**
  * Verrou d'instance unique de l'indexeur (ET-02, BC-02.3).
  *
- * Fichier créé de façon exclusive (`wx`) dans le dossier des index. Un verrou
- * laissé par un indexeur mort sur la même machine est repris ; un verrou tenu
- * par un processus vivant, ou posé depuis une autre machine, bloque le démarrage.
+ * Fichier créé de façon exclusive (`wx`) dans le dossier des index. Le
+ * propriétaire rafraîchit sa date de modification à intervalle régulier.
+ * Un verrou est repris s'il est abandonné :
+ * - posé sur la même machine par un processus qui n'existe plus (ou par un
+ *   processus de même pid, cas d'un conteneur redémarré) ;
+ * - ou non rafraîchi depuis `staleAfterMs`, quelle que soit la machine (cas
+ *   d'un conteneur recréé, dont le nom d'hôte change).
+ * Sinon, le démarrage est refusé.
  */
 
 import { readFileSync, rmSync } from 'node:fs';
-import { open, readFile, rm } from 'node:fs/promises';
+import { open, readFile, rm, stat, utimes } from 'node:fs/promises';
 import { hostname } from 'node:os';
 import { ContextVaultError } from '@contextvault/core';
 
@@ -62,6 +67,10 @@ function isAlive(pid: number): boolean {
   }
 }
 
+function processStartedAt(): number {
+  return Date.now() - process.uptime() * 1000;
+}
+
 function isOurs(path: string, owner: LockOwner): boolean {
   try {
     const current = parseOwner(readFileSync(path, 'utf8'));
@@ -75,17 +84,26 @@ export interface AcquireOptions {
   readonly pid?: number;
   readonly hostname?: string;
   readonly now?: () => Date;
+  /** Intervalle de rafraîchissement du verrou (10 s par défaut). */
+  readonly heartbeatMs?: number;
+  /** Au-delà, un verrou non rafraîchi est abandonné (60 s par défaut). */
+  readonly staleAfterMs?: number;
 }
+
+export const DEFAULT_HEARTBEAT_MS = 10_000;
+export const DEFAULT_STALE_AFTER_MS = 60_000;
 
 export async function acquireInstanceLock(
   path: string,
   options: AcquireOptions = {},
 ): Promise<InstanceLock> {
+  const now = options.now ?? (() => new Date());
   const owner: LockOwner = {
     pid: options.pid ?? process.pid,
     hostname: options.hostname ?? hostname(),
-    startedAt: (options.now ?? (() => new Date()))().toISOString(),
+    startedAt: now().toISOString(),
   };
+  const staleAfterMs = options.staleAfterMs ?? DEFAULT_STALE_AFTER_MS;
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -95,13 +113,21 @@ export async function acquireInstanceLock(
       } finally {
         await handle.close();
       }
+      const heartbeat = setInterval(() => {
+        if (!isOurs(path, owner)) return;
+        const date = now();
+        utimes(path, date, date).catch(() => undefined);
+      }, options.heartbeatMs ?? DEFAULT_HEARTBEAT_MS);
+      heartbeat.unref();
       return {
         path,
         owner,
         release: async () => {
+          clearInterval(heartbeat);
           if (isOurs(path, owner)) await rm(path, { force: true });
         },
         releaseSync: () => {
+          clearInterval(heartbeat);
           if (isOurs(path, owner)) rmSync(path, { force: true });
         },
       };
@@ -110,8 +136,19 @@ export async function acquireInstanceLock(
     }
 
     const existing = parseOwner(await readFile(path, 'utf8').catch(() => ''));
+    const modified = await stat(path).then(
+      (s) => s.mtimeMs,
+      () => 0,
+    );
+    const sameHost = existing !== undefined && existing.hostname === owner.hostname;
+    // Même pid mais verrou posé avant le démarrage de ce processus : c'est une
+    // incarnation précédente (conteneur redémarré), pas nous.
+    const previousIncarnation =
+      sameHost && existing.pid === owner.pid && Date.parse(existing.startedAt) < processStartedAt();
     const stale =
-      existing !== undefined && existing.hostname === owner.hostname && !isAlive(existing.pid);
+      now().getTime() - modified > staleAfterMs ||
+      previousIncarnation ||
+      (sameHost && existing.pid !== owner.pid && !isAlive(existing.pid));
     if (!stale || attempt > 0) throw new InstanceLockedError(path, existing);
     await rm(path, { force: true });
   }

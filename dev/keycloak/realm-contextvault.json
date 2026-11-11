@@ -1,0 +1,73 @@
+{
+  "realm": "contextvault",
+  "enabled": true,
+  "displayName": "ContextVault (développement)",
+  "accessTokenLifespan": 900,
+  "registrationAllowed": false,
+  "groups": [{ "name": "vault-client-demo" }],
+  "clients": [
+    {
+      "clientId": "contextvault",
+      "name": "Serveur MCP ContextVault (audience des jetons)",
+      "enabled": true,
+      "bearerOnly": true
+    },
+    {
+      "clientId": "contextvault-dev-client",
+      "name": "Client IA de développement",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:*", "http://127.0.0.1:*"],
+      "webOrigins": ["+"],
+      "attributes": { "pkce.code.challenge.method": "S256" },
+      "protocolMappers": [
+        {
+          "name": "groupes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "config": {
+            "claim.name": "groups",
+            "full.path": "false",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "userinfo.token.claim": "false"
+          }
+        },
+        {
+          "name": "audience-contextvault",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "contextvault",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "email": "alice@exemple.example",
+      "firstName": "Alice",
+      "lastName": "Démo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "alice", "temporary": false }],
+      "groups": ["vault-client-demo"]
+    },
+    {
+      "username": "bob",
+      "email": "bob@exemple.example",
+      "firstName": "Bob",
+      "lastName": "Démo",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [{ "type": "password", "value": "bob", "temporary": false }],
+      "groups": []
+    }
+  ]
+}

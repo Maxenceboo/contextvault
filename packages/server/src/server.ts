@@ -1,8 +1,8 @@
 /**
  * Serveur MCP (ET-02) : sans état, plusieurs instances possibles, et sans
- * aucun droit d'écriture sur les index. Le transport MCP et les outils
- * arrivent avec BC-10 et BC-40 ; ce module pose le démarrage et l'accès
- * en lecture seule au stockage.
+ * aucun droit d'écriture sur les index. Ce module charge la configuration et
+ * ouvre le stockage en lecture ; les transports sont dans `http.ts` et
+ * `stdio.ts`, les outils arrivent avec BC-40.
  */
 
 import {

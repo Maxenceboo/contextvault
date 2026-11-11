@@ -5,6 +5,8 @@ export {
   type StartIndexerOptions,
 } from './indexer.js';
 export {
+  DEFAULT_HEARTBEAT_MS,
+  DEFAULT_STALE_AFTER_MS,
   InstanceLockedError,
   acquireInstanceLock,
   type AcquireOptions,

@@ -21,6 +21,7 @@
     "node": ">=22"
   },
   "dependencies": {
-    "@contextvault/core": "0.0.0"
+    "@contextvault/core": "0.0.0",
+    "@modelcontextprotocol/sdk": "^1.32.2"
   }
 }

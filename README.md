@@ -17,12 +17,25 @@ npm test               # Vitest
 npm run licenses       # contrôle de licences : GPL, LGPL et AGPL interdites
 ```
 
-La CI (`.github/workflows/ci.yml`) lance ces cinq étapes sur chaque demande de fusion.
+La CI (`.github/workflows/ci.yml`) lance ces cinq étapes sur chaque demande de fusion, puis construit et vérifie l'image Docker.
+
+### Environnement de développement
+
+```sh
+docker compose up --build
+```
+
+- Serveur MCP : `http://localhost:8080/mcp` (sondes `/healthz` et `/readyz`), avec deux vaults fictifs (`dev/vaults`).
+- Keycloak : `http://localhost:8081` (admin / admin ; utilisateurs `alice` / `alice`, membre de `vault-client-demo`, et `bob` / `bob`).
+- Mode stdio pour un client MCP local : `CONTEXTVAULT_ENV=development node packages/server/dist/bin.js --stdio`.
+
+Le transport HTTP sans authentification et le mode stdio sont refusés hors `CONTEXTVAULT_ENV=development`. Installation sur un réseau isolé : [docs/installation-hors-ligne.md](docs/installation-hors-ligne.md).
 
 ### Organisation
 
 - `packages/*` : paquets du monorepo (workspaces npm), publiés sous `@contextvault/<nom>`.
-- `tools/` : outils du dépôt (contrôle de licences).
+- `tools/` : outils du dépôt (contrôle de licences, vérification de l'image Docker).
+- `dev/` : configuration et vaults fictifs du docker-compose de développement, royaume Keycloak.
 - `docs/` : cahier des charges, décisions, backlog.
 
 ### Licences des dépendances
