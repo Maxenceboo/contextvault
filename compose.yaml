@@ -2,7 +2,8 @@
 #
 #   docker compose up --build
 #
-# - serveur MCP : http://localhost:8080/mcp  (sondes /healthz et /readyz)
+# - serveur MCP : http://localhost:8080/mcp  (sondes /healthz et /readyz,
+#   métadonnées OAuth sur /.well-known/oauth-protected-resource/mcp)
 # - Keycloak    : http://localhost:8081  (admin / admin ; utilisateurs alice / alice et bob / bob)
 #
 # Réservé au développement : CONTEXTVAULT_ENV=development autorise le transport
@@ -39,6 +40,11 @@ services:
 
   server:
     <<: *contextvault
+    environment:
+      <<: *contextvault-env
+      CONTEXTVAULT_PUBLIC_URL: http://localhost:8080
+      # Émetteur annoncé aux clients MCP (découverte du SSO, BC-10.1).
+      CONTEXTVAULT_OIDC_ISSUER: http://localhost:8081/realms/contextvault
     depends_on:
       - indexer
     ports:
@@ -57,6 +63,8 @@ services:
     image: ${KEYCLOAK_IMAGE:-quay.io/keycloak/keycloak:26.4}
     command: ['start-dev', '--import-realm', '--http-port=8081']
     environment:
+      # Émetteur fixe des jetons, quel que soit le nom d'hôte utilisé pour joindre Keycloak.
+      KC_HOSTNAME: http://localhost:8081
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
     ports:

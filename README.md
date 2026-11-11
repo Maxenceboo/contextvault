@@ -25,7 +25,7 @@ La CI (`.github/workflows/ci.yml`) lance ces cinq étapes sur chaque demande de 
 docker compose up --build
 ```
 
-- Serveur MCP : `http://localhost:8080/mcp` (sondes `/healthz` et `/readyz`), avec deux vaults fictifs (`dev/vaults`).
+- Serveur MCP : `http://localhost:8080/mcp` (sondes `/healthz` et `/readyz`), avec deux vaults fictifs (`dev/vaults`). Il annonce Keycloak comme émetteur SSO sur `/.well-known/oauth-protected-resource/mcp`.
 - Keycloak : `http://localhost:8081` (admin / admin ; utilisateurs `alice` / `alice`, membre de `vault-client-demo`, et `bob` / `bob`).
 - Mode stdio pour un client MCP local : `CONTEXTVAULT_ENV=development node packages/server/dist/bin.js --stdio`.
 
