@@ -1,0 +1,15 @@
+{
+  "//": "Vérification de types des outils JavaScript (tools/) et des fichiers de configuration.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": false,
+    "sourceMap": false,
+    "outDir": "dist/tools",
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["tools/**/*.mjs", "*.config.mjs"]
+}
